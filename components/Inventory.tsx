@@ -24,7 +24,7 @@ const Inventory: React.FC<InventoryProps> = ({ data, setData, currentUser }) => 
     date: getCurrentJalaliDate()
   });
 
-  // جلوگیری از اسکرول بدنه هنگام باز بودن مودال
+  // Prevent body scroll when modal is open
   useEffect(() => {
     if (showModal) {
       document.body.classList.add('modal-open');
@@ -197,77 +197,112 @@ const Inventory: React.FC<InventoryProps> = ({ data, setData, currentUser }) => 
         </div>
       </div>
 
-      {/* Modal Re-designed */}
+      {/* Full Screen Modal */}
       {showModal && (
-        <div className="fixed inset-0 bg-indigo-950/80 backdrop-blur-md flex items-center justify-center p-2 md:p-6 z-[200] overflow-y-auto">
-          <div className="bg-white rounded-[2.5rem] w-full max-w-2xl max-h-full md:max-h-[90vh] shadow-2xl overflow-hidden animate-fadeIn flex flex-col my-auto border-4 border-white">
-            <div className="p-6 md:p-8 bg-indigo-900 text-white flex justify-between items-center shrink-0">
+        <div className="fixed inset-0 bg-white z-[200] flex flex-col animate-fadeIn overflow-hidden">
+          {/* Header */}
+          <div className="p-6 md:p-8 bg-indigo-950 text-white flex justify-between items-center shrink-0 shadow-xl">
+            <div className="flex items-center gap-4">
+              <div className="bg-white/10 p-4 rounded-3xl text-3xl">👕</div>
               <div>
-                <h3 className="text-xl md:text-2xl font-black">{editingProduct ? 'ویرایش اطلاعات کالا' : 'ثبت کالای جدید انبار'}</h3>
-                <p className="text-[10px] text-indigo-200 mt-1 uppercase tracking-widest">Sirjan Poosh Inventory System</p>
+                <h3 className="text-2xl md:text-3xl font-black">
+                  {editingProduct ? 'ویرایش اطلاعات کالا' : 'ثبت کالای جدید در انبار سیرجان پوش'}
+                </h3>
+                <p className="text-xs text-indigo-300 mt-1 font-bold uppercase tracking-widest">Sirjan Poosh Inventory Management System</p>
               </div>
-              <button onClick={() => setShowModal(false)} className="w-12 h-12 flex items-center justify-center bg-white/10 hover:bg-white/20 rounded-2xl text-3xl transition-all">&times;</button>
             </div>
-            
-            <form onSubmit={saveProduct} className="flex-1 overflow-y-auto p-6 md:p-10 space-y-8 custom-scrollbar">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-1">
-                  <label className="text-xs font-black text-gray-500 mr-2">کد اختصاصی کالا</label>
-                  <input required placeholder="مثلاً: SP-400" className="w-full p-4 border-2 border-gray-100 rounded-2xl outline-none focus:border-indigo-500 font-bold bg-gray-50 transition-all" value={formData.code} onChange={e => setFormData({...formData, code: e.target.value})} />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-xs font-black text-gray-500 mr-2">نام کالا (نوع پوشاک)</label>
-                  <input required placeholder="مثلاً: تیشرت نخی لانگ" className="w-full p-4 border-2 border-gray-100 rounded-2xl outline-none focus:border-indigo-500 font-bold bg-gray-50 transition-all" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-1">
-                  <label className="text-xs font-black text-gray-500 mr-2">تاریخ ثبت (شمسی)</label>
-                  <input required className="w-full p-4 border-2 border-gray-100 rounded-2xl outline-none focus:border-indigo-500 font-bold bg-gray-50 text-center" value={formData.date} onChange={e => setFormData({...formData, date: e.target.value})} />
-                </div>
-                <div className="space-y-1">
-                   <label className="text-xs font-black text-gray-500 mr-2">تعداد موجودی در انبار</label>
-                   <input type="text" placeholder="۰" className="w-full p-4 border-2 border-gray-100 rounded-2xl outline-none focus:border-indigo-500 font-black text-2xl text-center bg-gray-50" value={toPersianNumbers(formData.quantity)} onChange={e => handleNumericChange('quantity', e.target.value)} required />
-                </div>
-              </div>
-
-              <div className="bg-indigo-50 p-6 md:p-8 rounded-[2.5rem] border-2 border-dashed border-indigo-200 space-y-6">
-                <h4 className="font-black text-indigo-900 text-center border-b border-indigo-100 pb-2">تنظیمات قیمت‌گذاری و سود</h4>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div>
-                    <label className="text-[10px] font-black text-gray-400 block mb-1">قیمت خرید (تومان)</label>
-                    <input type="text" className="w-full p-4 border-2 border-white rounded-2xl font-black text-indigo-600 shadow-sm outline-none focus:border-indigo-500" value={toPersianNumbers(formatWithCommas(formData.buyPrice))} onChange={e => handleNumericChange('buyPrice', e.target.value)} required />
-                  </div>
-                  <div>
-                    <label className="text-[10px] font-black text-gray-400 block mb-1">هزینه کرایه حمل</label>
-                    <input type="text" className="w-full p-4 border-2 border-white rounded-2xl font-black shadow-sm outline-none focus:border-indigo-500" value={toPersianNumbers(formatWithCommas(formData.shippingCost))} onChange={e => handleNumericChange('shippingCost', e.target.value)} />
-                  </div>
-                  <div>
-                    <label className="text-[10px] font-black text-gray-400 block mb-1">درصد سود (٪)</label>
-                    <input type="text" className="w-full p-4 border-2 border-white rounded-2xl font-black shadow-sm outline-none focus:border-indigo-500" value={toPersianNumbers(formData.marginPercent)} onChange={e => handleNumericChange('marginPercent', e.target.value)} />
-                  </div>
-                </div>
+            <button 
+              onClick={() => setShowModal(false)} 
+              className="w-14 h-14 flex items-center justify-center bg-white/10 hover:bg-white/20 rounded-2xl text-4xl transition-all font-light"
+            >
+              &times;
+            </button>
+          </div>
+          
+          {/* Form Content - Scrollable */}
+          <div className="flex-1 overflow-y-auto bg-slate-50">
+            <div className="max-w-5xl mx-auto p-6 md:p-12">
+              <form id="product-form" onSubmit={saveProduct} className="space-y-12 pb-20">
                 
-                <div className="pt-4 flex flex-col md:flex-row justify-between items-center gap-4">
-                  <div className="text-center md:text-right">
-                    <p className="text-[10px] font-black text-gray-400 uppercase">قیمت تمام شده:</p>
-                    <p className="font-black text-lg text-gray-700">{formatCurrency(calculateTotalCost())}</p>
-                  </div>
-                  <div className="bg-indigo-600 p-4 px-8 rounded-3xl shadow-xl w-full md:w-auto text-center">
-                    <p className="text-[10px] font-black text-indigo-200 mb-1 uppercase">قیمت نهایی فروش:</p>
-                    <p className="text-2xl font-black text-white">{formatCurrency(calculateFinalPrice())}</p>
+                {/* Section: Basic Info */}
+                <div className="bg-white rounded-[3rem] p-8 md:p-12 shadow-sm border border-slate-200">
+                  <h4 className="text-lg font-black text-indigo-950 mb-8 flex items-center gap-3">
+                    <span className="w-2 h-8 bg-indigo-600 rounded-full"></span>
+                    اطلاعات پایه کالا
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                    <div className="space-y-2">
+                      <label className="text-xs font-black text-slate-500 mr-2">کد اختصاصی کالا</label>
+                      <input required placeholder="مثلاً: SP-102" className="w-full p-5 border-2 border-slate-100 rounded-2xl outline-none focus:border-indigo-500 font-black bg-slate-50 transition-all text-xl" value={formData.code} onChange={e => setFormData({...formData, code: e.target.value})} />
+                    </div>
+                    <div className="space-y-2 lg:col-span-2">
+                      <label className="text-xs font-black text-slate-500 mr-2">نام کامل کالا (نوع پوشاک، رنگ، سایز)</label>
+                      <input required placeholder="مثلاً: تیشرت نخی لانگ مشکی سایز XL" className="w-full p-5 border-2 border-slate-100 rounded-2xl outline-none focus:border-indigo-500 font-black bg-slate-50 transition-all text-xl" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-xs font-black text-slate-500 mr-2">تاریخ ثبت (شمسی)</label>
+                      <input required className="w-full p-5 border-2 border-slate-100 rounded-2xl outline-none focus:border-indigo-500 font-black bg-slate-50 text-center text-xl" value={formData.date} onChange={e => setFormData({...formData, date: e.target.value})} />
+                    </div>
+                    <div className="space-y-2">
+                       <label className="text-xs font-black text-slate-500 mr-2">تعداد موجودی انبار</label>
+                       <input type="text" placeholder="۰" className="w-full p-5 border-2 border-slate-100 rounded-2xl outline-none focus:border-indigo-500 font-black text-3xl text-center bg-indigo-50 text-indigo-700 shadow-inner" value={toPersianNumbers(formData.quantity)} onChange={e => handleNumericChange('quantity', e.target.value)} required />
+                    </div>
                   </div>
                 </div>
-              </div>
-            </form>
 
-            <div className="p-6 md:p-8 bg-gray-50 border-t flex flex-col md:flex-row gap-4 shrink-0">
-              <button type="button" onClick={saveProduct} className="flex-[2] bg-indigo-600 text-white py-5 rounded-[1.5rem] font-black text-xl shadow-2xl shadow-indigo-200 hover:bg-indigo-700 transition-all active:scale-95">
-                {editingProduct ? 'بروزرسانی تغییرات کالا' : 'تایید و ثبت نهایی در انبار'}
-              </button>
-              <button type="button" onClick={() => setShowModal(false)} className="flex-1 bg-white text-gray-500 py-5 rounded-[1.5rem] font-black text-lg border-2 border-gray-200 hover:bg-gray-100 transition-all">انصراف</button>
+                {/* Section: Pricing */}
+                <div className="bg-indigo-900 rounded-[3rem] p-8 md:p-12 shadow-2xl text-white">
+                  <h4 className="text-lg font-black text-indigo-200 mb-8 flex items-center gap-3">
+                    <span className="w-2 h-8 bg-white rounded-full"></span>
+                    محاسبه قیمت و حاشیه سود
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                    <div className="space-y-2">
+                      <label className="text-xs font-black text-indigo-300 mr-2">قیمت خرید هر واحد (تومان)</label>
+                      <input type="text" className="w-full p-6 border-2 border-white/10 rounded-3xl font-black text-3xl bg-white/5 outline-none focus:border-white transition-all text-center" value={toPersianNumbers(formatWithCommas(formData.buyPrice))} onChange={e => handleNumericChange('buyPrice', e.target.value)} required />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-xs font-black text-indigo-300 mr-2">هزینه حمل و نقل (تومان)</label>
+                      <input type="text" className="w-full p-6 border-2 border-white/10 rounded-3xl font-black text-3xl bg-white/5 outline-none focus:border-white transition-all text-center" value={toPersianNumbers(formatWithCommas(formData.shippingCost))} onChange={e => handleNumericChange('shippingCost', e.target.value)} />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-xs font-black text-indigo-300 mr-2">درصد سود مورد نظر (٪)</label>
+                      <input type="text" placeholder="۰" className="w-full p-6 border-2 border-white/10 rounded-3xl font-black text-4xl bg-white/5 outline-none focus:border-white transition-all text-center" value={toPersianNumbers(formData.marginPercent)} onChange={e => handleNumericChange('marginPercent', e.target.value)} />
+                    </div>
+                  </div>
+                  
+                  <div className="mt-12 pt-12 border-t border-white/10 flex flex-col md:flex-row justify-around items-center gap-10">
+                    <div className="text-center">
+                      <p className="text-xs font-black text-indigo-300 uppercase tracking-widest mb-2">قیمت تمام شده برای شما:</p>
+                      <p className="text-3xl font-black text-white">{formatCurrency(calculateTotalCost())}</p>
+                    </div>
+                    <div className="bg-white p-8 px-16 rounded-[2.5rem] shadow-2xl shadow-black/20 text-center transform scale-110">
+                      <p className="text-xs font-black text-indigo-400 mb-2 uppercase tracking-widest">قیمت نهایی فروش (واحد):</p>
+                      <p className="text-5xl font-black text-indigo-900">{formatCurrency(calculateFinalPrice())}</p>
+                    </div>
+                  </div>
+                </div>
+
+              </form>
             </div>
+          </div>
+
+          {/* Footer - Sticky Bottom */}
+          <div className="p-6 md:p-10 bg-white border-t-2 border-slate-100 flex flex-col md:flex-row gap-6 shrink-0 shadow-[0_-10px_40px_-15px_rgba(0,0,0,0.05)]">
+            <button 
+              type="submit" 
+              form="product-form"
+              className="flex-[3] bg-indigo-600 text-white py-6 rounded-3xl font-black text-2xl shadow-2xl shadow-indigo-200 hover:bg-indigo-700 transition-all active:scale-[0.98] flex items-center justify-center gap-4"
+            >
+              <span>{editingProduct ? '💾 ذخیره تغییرات کالا' : '✅ ثبت نهایی کالا در سیستم'}</span>
+            </button>
+            <button 
+              type="button" 
+              onClick={() => setShowModal(false)} 
+              className="flex-1 bg-slate-100 text-slate-500 py-6 rounded-3xl font-black text-xl hover:bg-slate-200 transition-all"
+            >
+              انصراف و بازگشت
+            </button>
           </div>
         </div>
       )}
