@@ -199,115 +199,94 @@ const Inventory: React.FC<InventoryProps> = ({ data, setData, currentUser }) => 
       </div>
 
       {showModal && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-md flex items-start justify-center p-2 md:p-8 z-[200] overflow-y-auto pt-10">
-          <div className="bg-white rounded-[2.5rem] w-full max-w-2xl shadow-2xl overflow-hidden animate-fadeIn border-4 border-white mb-10">
-            <div className="p-6 md:p-8 bg-indigo-950 text-white flex justify-between items-center sticky top-0 z-10">
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-md flex items-center justify-center p-2 md:p-6 z-[200]">
+          <div className="bg-white rounded-[2.5rem] w-full max-w-2xl max-h-[90vh] shadow-2xl overflow-hidden animate-fadeIn border-4 border-white flex flex-col">
+            {/* Header - Fixed */}
+            <div className="p-6 md:p-8 bg-indigo-950 text-white flex justify-between items-center shrink-0">
               <div>
                 <h3 className="text-xl md:text-2xl font-black">{editingProduct ? 'ویرایش کالا' : 'ثبت کالای جدید'}</h3>
-                <p className="text-[10px] md:text-xs text-indigo-300 mt-1">اطلاعات فنی و قیمت‌گذاری محصول را دقیق وارد کنید</p>
+                <p className="text-[10px] md:text-xs text-indigo-300 mt-1">اطلاعات فنی و قیمت‌گذاری محصول</p>
               </div>
               <button 
                 type="button"
                 onClick={() => setShowModal(false)} 
-                className="w-12 h-12 flex items-center justify-center bg-white/10 hover:bg-white/20 rounded-2xl text-3xl transition-all"
-                title="بستن"
+                className="w-10 h-10 flex items-center justify-center bg-white/10 hover:bg-white/20 rounded-xl text-2xl transition-all"
               >
                 &times;
               </button>
             </div>
             
-            <form onSubmit={saveProduct} className="p-6 md:p-10 space-y-6 md:space-y-8">
+            {/* Form Content - Scrollable */}
+            <form onSubmit={saveProduct} className="flex-1 overflow-y-auto p-6 md:p-10 space-y-6 md:space-y-8 custom-scrollbar">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
                 <div className="space-y-2">
-                  <label className="text-sm font-black text-gray-600 mr-2">کد اختصاصی کالا</label>
-                  <input required placeholder="مثلاً: SP-102" className="w-full p-4 border-2 border-gray-100 rounded-[1.5rem] outline-none focus:border-indigo-500 font-bold bg-gray-50 transition-all" value={formData.code} onChange={e => setFormData({...formData, code: e.target.value})} />
+                  <label className="text-xs font-black text-gray-500 mr-2">کد اختصاصی کالا</label>
+                  <input required placeholder="مثلاً: SP-102" className="w-full p-4 border-2 border-gray-100 rounded-2xl outline-none focus:border-indigo-500 font-bold bg-gray-50 transition-all" value={formData.code} onChange={e => setFormData({...formData, code: e.target.value})} />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-sm font-black text-gray-600 mr-2">نام کالا (نوع پوشاک)</label>
-                  <input required placeholder="مثلاً: پیراهن مردانه نخی" className="w-full p-4 border-2 border-gray-100 rounded-[1.5rem] outline-none focus:border-indigo-500 font-bold bg-gray-50 transition-all" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} />
+                  <label className="text-xs font-black text-gray-500 mr-2">نام کالا (نوع پوشاک)</label>
+                  <input required placeholder="مثلاً: پیراهن مردانه نخی" className="w-full p-4 border-2 border-gray-100 rounded-2xl outline-none focus:border-indigo-500 font-bold bg-gray-50 transition-all" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} />
                 </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
                 <div className="space-y-2">
-                  <label className="text-sm font-black text-gray-600 mr-2">تاریخ ثبت (شمسی)</label>
-                  <input required placeholder="مثلاً: ۱۴۰۴/۰۱/۲۰" className="w-full p-4 border-2 border-gray-100 rounded-[1.5rem] outline-none focus:border-indigo-500 font-bold bg-gray-50 transition-all text-center" value={formData.date} onChange={e => setFormData({...formData, date: e.target.value})} />
+                  <label className="text-xs font-black text-gray-500 mr-2">تاریخ ثبت (شمسی)</label>
+                  <input required placeholder="۱۴۰۴/۰۱/۲۰" className="w-full p-4 border-2 border-gray-100 rounded-2xl outline-none focus:border-indigo-500 font-bold bg-gray-50 transition-all text-center" value={formData.date} onChange={e => setFormData({...formData, date: e.target.value})} />
                 </div>
                 <div className="space-y-2">
-                   <label className="text-sm font-black text-gray-600 mr-2">تعداد موجودی</label>
-                   <input type="text" placeholder="مثلاً: ۵۰" className="w-full p-4 border-2 border-gray-100 rounded-[1.5rem] outline-none focus:border-indigo-500 font-black text-xl text-center bg-gray-50" value={toPersianNumbers(formData.quantity)} onChange={e => handleNumericChange('quantity', e.target.value)} required />
+                   <label className="text-xs font-black text-gray-500 mr-2">تعداد موجودی</label>
+                   <input type="text" placeholder="۵۰" className="w-full p-4 border-2 border-gray-100 rounded-2xl outline-none focus:border-indigo-500 font-black text-xl text-center bg-gray-50" value={toPersianNumbers(formData.quantity)} onChange={e => handleNumericChange('quantity', e.target.value)} required />
                 </div>
               </div>
 
               <div className="bg-indigo-50 p-6 md:p-8 rounded-[2rem] border-2 border-dashed border-indigo-200 space-y-6">
-                <h4 className="font-black text-indigo-900 text-center mb-2">محاسبه قیمت تمام شده و سود فروش</h4>
+                <h4 className="font-black text-indigo-900 text-center mb-2">محاسبه سود و قیمت نهایی</h4>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="space-y-2">
-                    <label className="text-xs font-black text-gray-500 mr-2">قیمت خرید (تومان)</label>
-                    <input 
-                      type="text" 
-                      placeholder="وارد کنید..."
-                      className="w-full p-4 border-2 border-white rounded-2xl outline-none focus:border-indigo-500 font-black text-indigo-600 shadow-sm" 
-                      value={toPersianNumbers(formatWithCommas(formData.buyPrice))} 
-                      onChange={e => handleNumericChange('buyPrice', e.target.value)} 
-                      required 
-                    />
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-gray-400 mr-1">قیمت خرید (تومان)</label>
+                    <input type="text" className="w-full p-4 border-2 border-white rounded-xl outline-none focus:border-indigo-500 font-black text-indigo-600 shadow-sm" value={toPersianNumbers(formatWithCommas(formData.buyPrice))} onChange={e => handleNumericChange('buyPrice', e.target.value)} required />
                   </div>
-                  <div className="space-y-2">
-                    <label className="text-xs font-black text-gray-500 mr-2">هزینه کرایه حمل (تومان)</label>
-                    <input 
-                      type="text" 
-                      placeholder="وارد کنید..."
-                      className="w-full p-4 border-2 border-white rounded-2xl outline-none focus:border-indigo-500 font-black shadow-sm" 
-                      value={toPersianNumbers(formatWithCommas(formData.shippingCost))} 
-                      onChange={e => handleNumericChange('shippingCost', e.target.value)} 
-                    />
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-gray-400 mr-1">کرایه حمل (تومان)</label>
+                    <input type="text" className="w-full p-4 border-2 border-white rounded-xl outline-none focus:border-indigo-500 font-black shadow-sm" value={toPersianNumbers(formatWithCommas(formData.shippingCost))} onChange={e => handleNumericChange('shippingCost', e.target.value)} />
                   </div>
-                  <div className="space-y-2">
-                    <label className="text-xs font-black text-gray-500 mr-2">درصد سود فروش (٪)</label>
-                    <input 
-                      type="text" 
-                      placeholder="مثلاً: ۲۰"
-                      className="w-full p-4 border-2 border-white rounded-2xl outline-none focus:border-indigo-500 font-black shadow-sm" 
-                      value={toPersianNumbers(formData.marginPercent)} 
-                      onChange={e => handleNumericChange('marginPercent', e.target.value)} 
-                    />
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-gray-400 mr-1">درصد سود (٪)</label>
+                    <input type="text" className="w-full p-4 border-2 border-white rounded-xl outline-none focus:border-indigo-500 font-black shadow-sm" value={toPersianNumbers(formData.marginPercent)} onChange={e => handleNumericChange('marginPercent', e.target.value)} />
                   </div>
                 </div>
                 
-                <div className="flex flex-col md:flex-row items-center justify-between gap-4 pt-6 border-t border-indigo-200">
-                  <div className="text-center md:text-right bg-white/60 p-4 rounded-2xl border border-white w-full md:w-auto">
-                    <p className="text-xs font-black text-gray-400">قیمت تمام شده (خرید + کرایه):</p>
-                    <p className="font-black text-xl text-gray-700">{formatCurrency(calculateTotalCost())}</p>
+                <div className="flex flex-col md:flex-row items-center justify-between gap-4 pt-4 border-t border-indigo-200">
+                  <div className="text-center md:text-right">
+                    <p className="text-[10px] font-black text-gray-400">قیمت تمام شده:</p>
+                    <p className="font-black text-lg text-gray-700">{formatCurrency(calculateTotalCost())}</p>
                   </div>
-                  <div className="text-center md:text-left bg-indigo-600 p-6 rounded-[1.5rem] shadow-xl shadow-indigo-200 w-full md:w-auto">
-                    <p className="text-[10px] font-black text-indigo-100 uppercase tracking-widest mb-1">قیمت نهایی فروش (با احتساب سود):</p>
-                    <p className="text-2xl md:text-4xl font-black text-white">{formatCurrency(calculateFinalPrice())}</p>
+                  <div className="text-center md:text-left bg-indigo-600 p-4 px-6 rounded-2xl shadow-xl w-full md:w-auto">
+                    <p className="text-[9px] font-black text-indigo-100 uppercase mb-1">قیمت نهایی فروش:</p>
+                    <p className="text-xl md:text-2xl font-black text-white">{formatCurrency(calculateFinalPrice())}</p>
                   </div>
                 </div>
               </div>
-
-              <div className="flex flex-col md:flex-row items-center gap-4">
-                <button type="submit" className="w-full md:flex-[2] bg-indigo-600 text-white py-5 rounded-[1.5rem] font-black text-xl hover:bg-indigo-700 shadow-2xl shadow-indigo-200 transition-all active:scale-95">
-                  {editingProduct ? 'بروزرسانی کالا' : 'تایید و ثبت کالا در انبار'}
-                </button>
-                <button 
-                  type="button" 
-                  onClick={() => setShowModal(false)}
-                  className="w-full md:flex-1 bg-gray-100 text-gray-500 py-5 rounded-[1.5rem] font-black text-xl hover:bg-gray-200 transition-all active:scale-95"
-                >
-                  انصراف
-                </button>
-              </div>
-
-              <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100 flex items-center gap-3">
-                 <span className="text-xl">👤</span>
-                 <div>
-                    <p className="text-[10px] font-black text-gray-400 uppercase">کاربر ثبت کننده:</p>
-                    <p className="text-sm font-black text-indigo-900">{editingProduct ? editingProduct.registeredBy : currentUser.username}</p>
-                 </div>
-              </div>
             </form>
+
+            {/* Footer Buttons - Fixed */}
+            <div className="p-6 bg-gray-50 border-t flex flex-col md:flex-row gap-3 shrink-0">
+              <button 
+                type="submit" 
+                onClick={saveProduct}
+                className="w-full md:flex-[2] bg-indigo-600 text-white py-4 rounded-2xl font-black text-lg hover:bg-indigo-700 shadow-xl shadow-indigo-100 transition-all active:scale-95"
+              >
+                {editingProduct ? 'بروزرسانی کالا' : 'تایید و ثبت کالا'}
+              </button>
+              <button 
+                type="button" 
+                onClick={() => setShowModal(false)}
+                className="w-full md:flex-1 bg-white text-gray-500 py-4 rounded-2xl font-black border-2 border-gray-200 hover:bg-gray-50 transition-all"
+              >
+                انصراف
+              </button>
+            </div>
           </div>
         </div>
       )}
