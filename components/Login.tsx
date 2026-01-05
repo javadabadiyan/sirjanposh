@@ -15,8 +15,6 @@ const Login: React.FC<LoginProps> = ({ onLogin, users }) => {
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    
-    // Check master admin first (as requested previously)
     if (username === 'admin' && password === '5221157') {
       const adminUser = users.find(u => u.username === 'admin') || {
         id: '1',
@@ -27,41 +25,43 @@ const Login: React.FC<LoginProps> = ({ onLogin, users }) => {
       onLogin(adminUser);
       return;
     }
-
-    // Check custom users
     const user = users.find(u => u.username === username && u.password === password);
     if (user) {
       onLogin(user);
     } else {
-      setError('نام کاربری یا رمز عبور اشتباه است. دوباره تلاش کنید.');
+      setError('نام کاربری یا رمز عبور اشتباه است.');
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-indigo-950 p-4">
-      <div className="bg-white p-10 rounded-[2.5rem] shadow-2xl w-full max-w-md border border-indigo-100 animate-fadeIn">
+    <div className="min-h-screen flex items-center justify-center bg-[#0f172a] p-4 md:p-8 overflow-hidden relative">
+      {/* Background Decor */}
+      <div className="absolute top-[-10%] right-[-10%] w-[40%] h-[40%] bg-indigo-600/20 blur-[120px] rounded-full"></div>
+      <div className="absolute bottom-[-10%] left-[-10%] w-[40%] h-[40%] bg-blue-600/20 blur-[120px] rounded-full"></div>
+
+      <div className="bg-white/95 backdrop-blur-xl p-8 md:p-12 rounded-[3rem] shadow-2xl w-full max-w-md border border-white/20 animate-fadeIn relative z-10">
         <div className="text-center mb-10">
-          <div className="bg-indigo-100 w-20 h-20 rounded-3xl flex items-center justify-center mx-auto mb-6 text-4xl shadow-inner">👕</div>
-          <h1 className="text-3xl font-black text-indigo-900 mb-2">سیرجان پوش</h1>
-          <p className="text-gray-500 font-medium">سیستم مدیریت هوشمند پوشاک</p>
+          <div className="bg-indigo-600 w-20 h-20 rounded-[2rem] flex items-center justify-center mx-auto mb-6 text-4xl shadow-2xl shadow-indigo-200">👕</div>
+          <h1 className="text-3xl font-black text-slate-900 mb-2">سیرجان پوش</h1>
+          <p className="text-slate-400 font-bold text-sm tracking-wide">Premium Management Portal</p>
         </div>
 
         <form onSubmit={handleLogin} className="space-y-6">
           <div className="space-y-2">
-            <label className="block text-sm font-bold text-gray-700 mr-1">نام کاربری</label>
+            <label className="block text-xs font-black text-slate-500 mr-2 uppercase tracking-widest">نام کاربری</label>
             <input 
               type="text" 
-              className="w-full p-4 border-2 border-gray-100 rounded-2xl bg-gray-50 focus:border-indigo-500 focus:bg-white outline-none transition-all text-lg"
-              placeholder="مثلاً: admin"
+              className="w-full p-5 border-2 border-slate-100 rounded-2xl bg-slate-50 focus:border-indigo-600 focus:bg-white outline-none transition-all text-lg font-bold"
+              placeholder="Username"
               value={username}
               onChange={e => setUsername(e.target.value)}
             />
           </div>
           <div className="space-y-2">
-            <label className="block text-sm font-bold text-gray-700 mr-1">رمز عبور</label>
+            <label className="block text-xs font-black text-slate-500 mr-2 uppercase tracking-widest">رمز عبور</label>
             <input 
               type="password" 
-              className="w-full p-4 border-2 border-gray-100 rounded-2xl bg-gray-50 focus:border-indigo-500 focus:bg-white outline-none transition-all text-lg"
+              className="w-full p-5 border-2 border-slate-100 rounded-2xl bg-slate-50 focus:border-indigo-600 focus:bg-white outline-none transition-all text-lg font-bold"
               placeholder="••••••••"
               value={password}
               onChange={e => setPassword(e.target.value)}
@@ -69,21 +69,21 @@ const Login: React.FC<LoginProps> = ({ onLogin, users }) => {
           </div>
 
           {error && (
-            <div className="bg-red-50 text-red-600 p-3 rounded-xl text-sm text-center font-bold border border-red-100">
-              {error}
+            <div className="bg-red-50 text-red-600 p-4 rounded-2xl text-xs text-center font-black border border-red-100 animate-pulse">
+              ⚠️ {error}
             </div>
           )}
 
           <button 
             type="submit" 
-            className="w-full bg-indigo-600 text-white py-5 rounded-2xl font-black text-xl hover:bg-indigo-700 transition shadow-xl shadow-indigo-200 active:scale-[0.98]"
+            className="w-full bg-indigo-600 text-white py-5 rounded-[1.5rem] font-black text-xl hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-200 active:scale-95"
           >
-            ورود به پنل مدیریت
+            ورود به سامانه
           </button>
         </form>
 
-        <div className="mt-12 text-center text-xs text-gray-400 font-bold tracking-widest">
-          طراحی شده برای {toPersianNumbers('1404')} &copy; سیرجان پوش
+        <div className="mt-12 text-center">
+           <p className="text-[10px] text-slate-300 font-black uppercase tracking-[0.2em]">Designed for Sirjan Poosh © 1404</p>
         </div>
       </div>
     </div>

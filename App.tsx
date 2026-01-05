@@ -29,7 +29,6 @@ const INITIAL_DATA: AppData = {
 };
 
 const App: React.FC = () => {
-  // بارگذاری اطلاعات کاربر از LocalStorage برای جلوگیری از خروج خودکار
   const [currentUser, setCurrentUser] = useState<User | null>(() => {
     const savedSession = localStorage.getItem('sirjan_poosh_session');
     return savedSession ? JSON.parse(savedSession) : null;
@@ -41,12 +40,10 @@ const App: React.FC = () => {
     return saved ? JSON.parse(saved) : INITIAL_DATA;
   });
 
-  // ذخیره اطلاعات دیتابیس هنگام تغییرات
   useEffect(() => {
     localStorage.setItem('sirjan_poosh_data', JSON.stringify(data));
   }, [data]);
 
-  // ذخیره نشست کاربر (Session) هنگام ورود
   useEffect(() => {
     if (currentUser) {
       localStorage.setItem('sirjan_poosh_session', JSON.stringify(currentUser));
@@ -54,13 +51,6 @@ const App: React.FC = () => {
       localStorage.removeItem('sirjan_poosh_session');
     }
   }, [currentUser]);
-
-  // اطمینان از وجود کاربر ادمین در دیتابیس
-  useEffect(() => {
-    if (data.users.length === 0) {
-      setData(prev => ({...prev, users: INITIAL_DATA.users}));
-    }
-  }, [data.users.length]);
 
   const handleLogout = () => {
     setCurrentUser(null);
@@ -71,73 +61,85 @@ const App: React.FC = () => {
     return <Login onLogin={(user) => setCurrentUser(user)} users={data.users} />;
   }
 
-  // بررسی سطح دسترسی به تب‌ها
   const canAccess = (tabId: string) => {
     if (currentUser.role === 'admin') return true;
     return currentUser.permissions.includes(tabId);
   };
 
   return (
-    <div className="flex min-h-screen bg-gray-50 text-gray-800">
-      {/* Sidebar - Desktop */}
-      <div className="hidden md:flex flex-col w-64 bg-indigo-900 text-white fixed h-full shadow-2xl z-40">
+    <div className="flex min-h-screen bg-[#f8fafc] text-gray-800 font-medium">
+      {/* Sidebar - Desktop Only */}
+      <aside className="hidden lg:flex flex-col w-72 bg-indigo-950 text-white fixed h-full shadow-2xl z-40">
         <Sidebar 
           activeTab={activeTab} 
           setActiveTab={setActiveTab} 
           onLogout={handleLogout} 
           permissions={currentUser.role === 'admin' ? undefined : currentUser.permissions} 
         />
-      </div>
+      </aside>
 
-      {/* Main Content */}
-      <div className="flex-1 md:mr-64 p-4 md:p-8">
-        {/* Mobile Navigation (Bottom) */}
-        <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white/80 backdrop-blur-md border-t flex justify-around p-3 z-50 rounded-t-3xl shadow-lg">
-          {canAccess('dashboard') && <button onClick={() => setActiveTab('dashboard')} className={`p-2 text-2xl transition-all ${activeTab === 'dashboard' ? 'bg-indigo-600 text-white rounded-2xl scale-110 shadow-lg' : 'text-gray-400'}`}>📊</button>}
-          {canAccess('inventory') && <button onClick={() => setActiveTab('inventory')} className={`p-2 text-2xl transition-all ${activeTab === 'inventory' ? 'bg-indigo-600 text-white rounded-2xl scale-110 shadow-lg' : 'text-gray-400'}`}>👕</button>}
-          {canAccess('partners') && <button onClick={() => setActiveTab('partners')} className={`p-2 text-2xl transition-all ${activeTab === 'partners' ? 'bg-indigo-600 text-white rounded-2xl scale-110 shadow-lg' : 'text-gray-400'}`}>🤝</button>}
-          {canAccess('invoices') && <button onClick={() => setActiveTab('invoices')} className={`p-2 text-2xl transition-all ${activeTab === 'invoices' ? 'bg-indigo-600 text-white rounded-2xl scale-110 shadow-lg' : 'text-gray-400'}`}>📜</button>}
-          {canAccess('users') && <button onClick={() => setActiveTab('users')} className={`p-2 text-2xl transition-all ${activeTab === 'users' ? 'bg-indigo-600 text-white rounded-2xl scale-110 shadow-lg' : 'text-gray-400'}`}>👥</button>}
-        </div>
-
-        <header className="flex justify-between items-center mb-8 bg-white p-5 rounded-[2rem] shadow-sm border border-gray-100">
-          <div className="flex flex-col">
-            <h1 className="text-2xl font-black text-indigo-900">سیرجان پوش</h1>
-            <div className="flex items-center gap-2 mt-1">
-              <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
-              <span className="text-[10px] text-gray-500 font-bold">کاربر فعال: {currentUser.username} ({currentUser.role === 'admin' ? 'مدیر ارشد' : 'کارمند'})</span>
-            </div>
+      {/* Main Container */}
+      <div className="flex-1 lg:mr-72 min-h-screen flex flex-col">
+        {/* Mobile Header */}
+        <header className="lg:hidden bg-white border-b px-6 py-4 flex justify-between items-center sticky top-0 z-30 shadow-sm">
+          <div className="flex items-center gap-3">
+            <div className="bg-indigo-600 text-white p-2 rounded-xl text-xl">👕</div>
+            <h1 className="text-lg font-black text-indigo-950">سیرجان پوش</h1>
           </div>
-          <div className="bg-indigo-50 px-4 py-2 rounded-2xl text-indigo-700 font-black text-xs border border-indigo-100 shadow-inner">
-            تقویم: {getCurrentJalaliDate()}
-          </div>
+          <button onClick={handleLogout} className="text-red-500 bg-red-50 p-2 rounded-xl text-xl">🚪</button>
         </header>
 
-        <main className="mb-24 md:mb-0">
-          {activeTab === 'dashboard' && canAccess('dashboard') && <Dashboard data={data} />}
-          {activeTab === 'inventory' && canAccess('inventory') && <Inventory data={data} setData={setData} currentUser={currentUser} />}
-          {activeTab === 'partners' && canAccess('partners') && <Partners data={data} setData={setData} />}
-          {activeTab === 'invoices' && canAccess('invoices') && <Invoices data={data} setData={setData} />}
-          {activeTab === 'users' && canAccess('users') && <Users data={data} setData={setData} />}
-          {activeTab === 'backup' && canAccess('backup') && <BackupRestore data={data} setData={setData} />}
-          
-          {/* Access Denied Placeholder */}
-          {!canAccess(activeTab) && (
-            <div className="bg-white p-12 rounded-[3rem] text-center border-4 border-dashed border-gray-100 animate-fadeIn">
-              <div className="bg-red-50 w-24 h-24 rounded-[2rem] flex items-center justify-center mx-auto mb-6 text-5xl shadow-inner border border-red-100">🚫</div>
-              <h2 className="text-2xl font-black text-gray-800">دسترسی غیرمجاز</h2>
-              <p className="mt-4 text-gray-500 font-bold max-w-sm mx-auto leading-relaxed">
-                شما اجازه مشاهده این بخش را ندارید. برای تغییر سطح دسترسی با مدیریت سیستم هماهنگ کنید.
-              </p>
-              <button 
-                onClick={() => setActiveTab('dashboard')}
-                className="mt-8 bg-indigo-600 text-white px-10 py-4 rounded-2xl font-black hover:bg-indigo-700 transition shadow-xl shadow-indigo-100"
-              >
-                بازگشت به داشبورد
-              </button>
+        {/* Content Area */}
+        <main className="p-4 md:p-8 lg:p-10 flex-1 pb-24 lg:pb-10">
+          {/* Top Bar - Desktop Only */}
+          <div className="hidden lg:flex justify-between items-center mb-10 bg-white p-6 rounded-[2.5rem] shadow-sm border border-gray-100">
+            <div className="flex items-center gap-4">
+              <div className="bg-indigo-50 p-4 rounded-3xl text-3xl">👋</div>
+              <div>
+                <h2 className="text-xl font-black text-indigo-950">خوش آمدید، {currentUser.username}</h2>
+                <p className="text-xs text-gray-400 font-bold mt-1">مدیریت هوشمند فروشگاه سیرجان پوش</p>
+              </div>
             </div>
-          )}
+            <div className="flex gap-4">
+               <div className="bg-gray-50 px-6 py-3 rounded-2xl text-gray-500 font-black text-sm border border-gray-100 flex items-center gap-2">
+                 <span>📅</span> {getCurrentJalaliDate()}
+               </div>
+            </div>
+          </div>
+
+          {/* Dynamic Component Rendering */}
+          <div className="max-w-7xl mx-auto">
+            {activeTab === 'dashboard' && canAccess('dashboard') && <Dashboard data={data} />}
+            {activeTab === 'inventory' && canAccess('inventory') && <Inventory data={data} setData={setData} currentUser={currentUser} />}
+            {activeTab === 'partners' && canAccess('partners') && <Partners data={data} setData={setData} />}
+            {activeTab === 'invoices' && canAccess('invoices') && <Invoices data={data} setData={setData} />}
+            {activeTab === 'users' && canAccess('users') && <Users data={data} setData={setData} />}
+            {activeTab === 'backup' && canAccess('backup') && <BackupRestore data={data} setData={setData} />}
+          </div>
         </main>
+
+        {/* Mobile Navigation Bar - Fixed at Bottom */}
+        <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-xl border-t border-gray-100 flex justify-around items-center px-4 py-3 z-50 rounded-t-[2.5rem] shadow-[0_-10px_40px_-15px_rgba(0,0,0,0.1)]">
+          {[
+            { id: 'dashboard', icon: '📊', label: 'وضعیت' },
+            { id: 'inventory', icon: '👕', label: 'انبار' },
+            { id: 'partners', icon: '🤝', label: 'شرکا' },
+            { id: 'invoices', icon: '📜', label: 'فاکتور' },
+            { id: 'backup', icon: '💾', label: 'تنظیمات' }
+          ].filter(item => canAccess(item.id)).map(item => (
+            <button 
+              key={item.id}
+              onClick={() => setActiveTab(item.id)}
+              className={`flex flex-col items-center gap-1 p-2 transition-all duration-300 ${
+                activeTab === item.id ? 'text-indigo-600 scale-110' : 'text-gray-400 opacity-60'
+              }`}
+            >
+              <span className="text-2xl">{item.icon}</span>
+              <span className="text-[10px] font-black">{item.label}</span>
+              {activeTab === item.id && <span className="w-1 h-1 bg-indigo-600 rounded-full mt-0.5 animate-pulse"></span>}
+            </button>
+          ))}
+        </nav>
       </div>
     </div>
   );
