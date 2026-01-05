@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { AppData, Partner, PaymentHistory } from '../types';
-import { formatCurrency, toPersianNumbers, getCurrentJalaliDate } from '../utils/formatters';
+import { formatCurrency, toPersianNumbers, getCurrentJalaliDate, parseRawNumber } from '../utils/formatters';
 
 interface PartnersProps {
   data: AppData;
@@ -9,19 +9,57 @@ interface PartnersProps {
 }
 
 const Partners: React.FC<PartnersProps> = ({ data, setData }) => {
-  const [monthlyProfit, setMonthlyProfit] = useState(0);
-  const [selectedPeriod, setSelectedPeriod] = useState('۱۴۰۴-۰۱');
+  const [monthlyProfit, setMonthlyProfit] = useState<string>('0');
+  const [selectedPeriod, setSelectedPeriod] = useState('۱۴۰۴/۰۱');
   const [searchTerm, setSearchTerm] = useState('');
+  
+  // Partner Modal State
+  const [showPartnerModal, setShowPartnerModal] = useState(false);
+  const [editingPartner, setEditingPartner] = useState<Partner | null>(null);
+  const [partnerForm, setPartnerForm] = useState({ name: '', investment: '0' });
+
+  // Payment Modal State (for editing past payments)
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [editingPayment, setEditingPayment] = useState<PaymentHistory | null>(null);
+  const [paymentForm, setPaymentForm] = useState({ amount: '0', period: '', description: '' });
 
   const totalInvestment = data.partners.reduce((acc, p) => acc + p.investment, 0);
 
   const calculateShare = (investment: number) => {
     if (totalInvestment === 0) return 0;
-    return (investment / totalInvestment) * monthlyProfit;
+    return (investment / totalInvestment) * parseRawNumber(monthlyProfit);
   };
 
+  // --- Partner Actions ---
+  const savePartner = (e: React.FormEvent) => {
+    e.preventDefault();
+    const newPartner: Partner = {
+      id: editingPartner ? editingPartner.id : Date.now().toString(),
+      name: partnerForm.name,
+      investment: parseRawNumber(partnerForm.investment),
+      date: editingPartner ? editingPartner.date : getCurrentJalaliDate()
+    };
+
+    if (editingPartner) {
+      setData({ ...data, partners: data.partners.map(p => p.id === editingPartner.id ? newPartner : p) });
+    } else {
+      setData({ ...data, partners: [...data.partners, newPartner] });
+    }
+    setShowPartnerModal(false);
+    setEditingPartner(null);
+    setPartnerForm({ name: '', investment: '0' });
+  };
+
+  const deletePartner = (id: string) => {
+    if (confirm('آیا از حذف این شریک اطمینان دارید؟ تمام سوابق پرداخت وی نیز حفظ خواهد شد اما محاسبات جدید تغییر می‌کند.')) {
+      setData({ ...data, partners: data.partners.filter(p => p.id !== id) });
+    }
+  };
+
+  // --- Payment Actions ---
   const handlePayDividends = () => {
-    if (monthlyProfit <= 0) {
+    const profit = parseRawNumber(monthlyProfit);
+    if (profit <= 0) {
       alert('لطفاً مبلغ سود را وارد کنید.');
       return;
     }
@@ -36,8 +74,27 @@ const Partners: React.FC<PartnersProps> = ({ data, setData }) => {
     }));
 
     setData({ ...data, payments: [...data.payments, ...newPayments] });
-    setMonthlyProfit(0);
+    setMonthlyProfit('0');
     alert('سود با موفقیت تقسیم و ثبت شد.');
+  };
+
+  const savePaymentEdit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingPayment) return;
+
+    const updatedPayment: PaymentHistory = {
+      ...editingPayment,
+      amount: parseRawNumber(paymentForm.amount),
+      period: paymentForm.period,
+      description: paymentForm.description
+    };
+
+    setData({
+      ...data,
+      payments: data.payments.map(p => p.id === editingPayment.id ? updatedPayment : p)
+    });
+    setShowPaymentModal(false);
+    setEditingPayment(null);
   };
 
   const deletePayment = (id: string) => {
@@ -49,109 +106,252 @@ const Partners: React.FC<PartnersProps> = ({ data, setData }) => {
   const filteredPayments = data.payments.filter(p => 
     p.period.includes(searchTerm) || 
     data.partners.find(part => part.id === p.partnerId)?.name.includes(searchTerm)
-  );
+  ).reverse();
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 animate-fadeIn">
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        <div className="bg-white p-8 rounded-3xl shadow-sm border border-gray-100">
-          <h3 className="text-xl font-bold mb-8 text-gray-800 flex items-center gap-2">
-            <span className="bg-indigo-100 p-2 rounded-xl">🤝</span> لیست شرکا و سرمایه
-          </h3>
+        {/* Partners Section */}
+        <div className="bg-white p-8 rounded-[2.5rem] shadow-sm border border-gray-100">
+          <div className="flex justify-between items-center mb-8">
+            <h3 className="text-xl font-black text-gray-800 flex items-center gap-3">
+              <span className="bg-indigo-100 p-3 rounded-2xl text-2xl">🤝</span> لیست شرکا و سرمایه
+            </h3>
+            <button 
+              onClick={() => { setEditingPartner(null); setPartnerForm({ name: '', investment: '0' }); setShowPartnerModal(true); }}
+              className="bg-indigo-600 text-white px-5 py-2 rounded-xl font-bold hover:bg-indigo-700 transition text-sm shadow-lg shadow-indigo-100"
+            >
+              + افزودن شریک
+            </button>
+          </div>
+          
           <div className="space-y-4">
             {data.partners.map(p => {
-              const sharePercent = ((p.investment/totalInvestment)*100).toFixed(1);
+              const sharePercent = totalInvestment > 0 ? ((p.investment/totalInvestment)*100).toFixed(1) : "0";
               return (
-                <div key={p.id} className="p-6 border border-gray-100 rounded-2xl bg-gray-50 hover:bg-white hover:shadow-md transition">
-                  <div className="flex justify-between items-center mb-4">
-                    <span className="font-bold text-lg">{p.name}</span>
-                    <span className="bg-indigo-600 text-white px-4 py-1 rounded-full text-xs font-bold">{toPersianNumbers(sharePercent)}٪ سهم</span>
+                <div key={p.id} className="p-6 border border-gray-100 rounded-3xl bg-gray-50 hover:bg-white hover:shadow-xl hover:border-indigo-100 transition-all duration-300 group">
+                  <div className="flex justify-between items-start mb-4">
+                    <div>
+                      <span className="font-black text-xl text-indigo-900 block">{p.name}</span>
+                      <span className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-1 block">تاریخ ورود: {toPersianNumbers(p.date)}</span>
+                    </div>
+                    <span className="bg-indigo-600 text-white px-4 py-1.5 rounded-2xl text-xs font-black shadow-lg shadow-indigo-100">
+                      {toPersianNumbers(sharePercent)}٪ سهم
+                    </span>
                   </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-500">میزان سرمایه:</span>
-                    <span className="font-bold text-indigo-900">{formatCurrency(p.investment)}</span>
+                  <div className="flex justify-between items-center text-sm mb-4">
+                    <span className="text-gray-500 font-bold">میزان سرمایه:</span>
+                    <span className="font-black text-indigo-900 text-lg">{formatCurrency(p.investment)}</span>
                   </div>
-                  <div className="text-xs text-gray-400 mt-2 text-left">{toPersianNumbers(p.date)}</div>
+                  <div className="pt-4 border-t border-gray-200 flex justify-end gap-4 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button 
+                      onClick={() => { setEditingPartner(p); setPartnerForm({ name: p.name, investment: p.investment.toString() }); setShowPartnerModal(true); }}
+                      className="text-blue-600 font-black text-xs hover:underline"
+                    >ویرایش</button>
+                    <button 
+                      onClick={() => deletePartner(p.id)}
+                      className="text-red-500 font-black text-xs hover:underline"
+                    >حذف</button>
+                  </div>
                 </div>
               );
             })}
+            {data.partners.length === 0 && (
+              <div className="text-center py-10 text-gray-400 font-bold border-2 border-dashed rounded-3xl">هیچ شریکی ثبت نشده است</div>
+            )}
           </div>
         </div>
 
-        <div className="bg-white p-8 rounded-3xl shadow-sm border-2 border-indigo-100">
-          <h3 className="text-xl font-bold mb-8 text-indigo-900">حسابداری و تقسیم سود ماهانه</h3>
+        {/* Profit Distribution Section */}
+        <div className="bg-white p-8 rounded-[2.5rem] shadow-sm border-2 border-indigo-100">
+          <h3 className="text-xl font-black mb-8 text-indigo-950 flex items-center gap-3">
+            <span className="bg-green-100 p-3 rounded-2xl text-2xl">📊</span> حسابداری و تقسیم سود
+          </h3>
           <div className="space-y-6">
             <div>
-              <label className="block text-sm text-gray-500 mb-2">مبلغ سود خالص دوره (تومان)</label>
+              <label className="block text-sm font-bold text-gray-600 mb-2 mr-2">مبلغ سود خالص دوره (تومان)</label>
               <input 
-                type="number" 
-                className="w-full p-4 border rounded-2xl text-2xl font-black text-center text-indigo-600 outline-none focus:ring-4 focus:ring-indigo-100 transition"
-                value={monthlyProfit}
-                onChange={e => setMonthlyProfit(Number(e.target.value))}
+                type="text" 
+                className="w-full p-5 border-2 border-gray-100 bg-gray-50 rounded-[2rem] text-3xl font-black text-center text-indigo-600 outline-none focus:border-indigo-500 focus:bg-white transition-all shadow-inner"
+                value={toPersianNumbers(monthlyProfit.replace(/\B(?=(\d{3})+(?!\d))/g, ","))}
+                onChange={e => setMonthlyProfit(e.target.value.replace(/[^0-9]/g, ''))}
               />
             </div>
             <div>
-              <label className="block text-sm text-gray-500 mb-2">دوره پرداخت (ماه/سال)</label>
-              <input className="w-full p-4 border rounded-2xl outline-none" value={selectedPeriod} onChange={e => setSelectedPeriod(e.target.value)} />
+              <label className="block text-sm font-bold text-gray-600 mb-2 mr-2">دوره پرداخت (مثلاً: ۱۴۰۴/۰۲)</label>
+              <input 
+                className="w-full p-4 border-2 border-gray-100 bg-gray-50 rounded-2xl outline-none focus:border-indigo-500 focus:bg-white transition-all font-bold" 
+                value={selectedPeriod} 
+                onChange={e => setSelectedPeriod(e.target.value)} 
+              />
             </div>
 
-            <div className="bg-gray-50 p-6 rounded-2xl border border-dashed border-indigo-200">
-              <p className="text-sm font-bold text-indigo-800 mb-4">پیش‌نمایش تقسیم بر اساس سرمایه:</p>
-              {data.partners.map(p => (
-                <div key={p.id} className="flex justify-between py-2 border-b last:border-0 border-gray-200">
-                  <span className="text-gray-600">{p.name}:</span>
-                  <span className="font-black text-green-700">{formatCurrency(calculateShare(p.investment))}</span>
-                </div>
-              ))}
+            <div className="bg-indigo-50/50 p-6 rounded-3xl border border-dashed border-indigo-200">
+              <p className="text-xs font-black text-indigo-900 mb-4 opacity-70">پیش‌نمایش تقسیم سود بر اساس سهم فعلی:</p>
+              <div className="space-y-3">
+                {data.partners.map(p => (
+                  <div key={p.id} className="flex justify-between items-center py-2 border-b last:border-0 border-indigo-100/50">
+                    <span className="text-gray-700 font-bold">{p.name}:</span>
+                    <span className="font-black text-green-700 text-lg">{formatCurrency(calculateShare(p.investment))}</span>
+                  </div>
+                ))}
+              </div>
             </div>
 
-            <button onClick={handlePayDividends} className="w-full bg-indigo-600 text-white py-5 rounded-2xl font-black text-lg hover:bg-indigo-700 shadow-xl shadow-indigo-100 transition-all active:scale-95">
+            <button onClick={handlePayDividends} className="w-full bg-indigo-600 text-white py-6 rounded-3xl font-black text-xl hover:bg-indigo-700 shadow-xl shadow-indigo-100 transition-all active:scale-[0.97]">
               تایید و ثبت نهایی تقسیم سود
             </button>
           </div>
         </div>
       </div>
 
-      <div className="bg-white p-8 rounded-3xl shadow-sm border border-gray-100">
+      {/* Payment History Table */}
+      <div className="bg-white p-8 rounded-[2.5rem] shadow-sm border border-gray-100">
         <div className="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
-          <h3 className="text-xl font-bold">تاریخچه پرداخت سودها</h3>
-          <div className="relative w-full md:w-64">
+          <h3 className="text-xl font-black text-gray-800">تاریخچه پرداخت سودها</h3>
+          <div className="relative w-full md:w-80">
             <input 
               type="text" 
-              placeholder="جستجو در تاریخچه..." 
-              className="w-full p-3 border rounded-xl outline-none"
+              placeholder="جستجو در تاریخچه (نام شریک یا دوره)..." 
+              className="w-full p-4 border-2 border-gray-50 bg-gray-50 rounded-2xl outline-none focus:border-indigo-500 focus:bg-white transition-all pr-12 font-bold"
               value={searchTerm}
               onChange={e => setSearchTerm(e.target.value)}
             />
+            <span className="absolute right-4 top-4 opacity-30">🔍</span>
           </div>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-right">
             <thead>
-              <tr className="text-indigo-900 bg-indigo-50 border-b">
-                <th className="p-4 rounded-tr-xl">شریک</th>
-                <th className="p-4">دوره</th>
-                <th className="p-4">مبلغ پرداختی</th>
-                <th className="p-4">تاریخ ثبت</th>
-                <th className="p-4 rounded-tl-xl text-center">عملیات</th>
+              <tr className="text-indigo-950 bg-indigo-50/50">
+                <th className="p-5 rounded-tr-[1.5rem] font-black">شریک</th>
+                <th className="p-5 font-black text-center">دوره</th>
+                <th className="p-5 font-black">مبلغ پرداختی</th>
+                <th className="p-5 font-black">تاریخ ثبت</th>
+                <th className="p-5 rounded-tl-[1.5rem] text-center font-black">عملیات</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody className="divide-y divide-gray-50">
               {filteredPayments.map(pay => (
-                <tr key={pay.id} className="border-b hover:bg-gray-50">
-                  <td className="p-4 font-bold">{data.partners.find(part => part.id === pay.partnerId)?.name}</td>
-                  <td className="p-4">{toPersianNumbers(pay.period)}</td>
-                  <td className="p-4 font-black text-green-600">{formatCurrency(pay.amount)}</td>
-                  <td className="p-4 text-gray-500">{toPersianNumbers(pay.date)}</td>
-                  <td className="p-4 text-center">
-                    <button onClick={() => deletePayment(pay.id)} className="text-red-500 hover:scale-110 transition">حذف</button>
+                <tr key={pay.id} className="hover:bg-indigo-50/20 transition-colors group">
+                  <td className="p-5 font-black text-indigo-900">{data.partners.find(part => part.id === pay.partnerId)?.name || 'شریک حذف شده'}</td>
+                  <td className="p-5 text-center font-bold text-gray-600">{toPersianNumbers(pay.period)}</td>
+                  <td className="p-5 font-black text-green-600">{formatCurrency(pay.amount)}</td>
+                  <td className="p-5 text-gray-400 text-xs font-bold">{toPersianNumbers(pay.date)}</td>
+                  <td className="p-5 text-center">
+                    <div className="flex justify-center gap-3 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button 
+                        onClick={() => {
+                          setEditingPayment(pay);
+                          setPaymentForm({ amount: pay.amount.toString(), period: pay.period, description: pay.description || '' });
+                          setShowPaymentModal(true);
+                        }}
+                        className="text-blue-600 hover:scale-110 transition p-2 bg-blue-50 rounded-lg"
+                        title="ویرایش"
+                      >📝</button>
+                      <button 
+                        onClick={() => deletePayment(pay.id)} 
+                        className="text-red-500 hover:scale-110 transition p-2 bg-red-50 rounded-lg"
+                        title="حذف"
+                      >🗑️</button>
+                    </div>
                   </td>
                 </tr>
               ))}
+              {filteredPayments.length === 0 && (
+                <tr><td colSpan={5} className="p-10 text-center text-gray-400 font-bold">موردی یافت نشد</td></tr>
+              )}
             </tbody>
           </table>
         </div>
       </div>
+
+      {/* Partner Add/Edit Modal */}
+      {showPartnerModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-[200]">
+          <div className="bg-white rounded-[2.5rem] w-full max-w-md shadow-2xl overflow-hidden animate-fadeIn">
+            <div className="p-8 bg-indigo-950 text-white flex justify-between items-center">
+              <div>
+                <h3 className="text-2xl font-black">{editingPartner ? 'ویرایش اطلاعات شریک' : 'افزودن شریک جدید'}</h3>
+                <p className="text-xs text-indigo-300 mt-1">مشخصات و سرمایه اولیه را وارد کنید</p>
+              </div>
+              <button onClick={() => setShowPartnerModal(false)} className="text-3xl hover:rotate-90 transition">&times;</button>
+            </div>
+            <form onSubmit={savePartner} className="p-8 space-y-6">
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-gray-500 mr-2">نام و نام خانوادگی شریک</label>
+                <input 
+                  required 
+                  className="w-full p-4 bg-gray-50 border-2 border-gray-100 rounded-2xl outline-none focus:border-indigo-500 transition font-bold" 
+                  value={partnerForm.name} 
+                  onChange={e => setPartnerForm({...partnerForm, name: e.target.value})} 
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-gray-500 mr-2">میزان سرمایه‌گذاری (تومان)</label>
+                <input 
+                  required 
+                  type="text"
+                  className="w-full p-4 bg-gray-50 border-2 border-gray-100 rounded-2xl outline-none focus:border-indigo-500 transition font-black text-xl text-indigo-700" 
+                  value={toPersianNumbers(partnerForm.investment.replace(/\B(?=(\d{3})+(?!\d))/g, ","))} 
+                  onChange={e => setPartnerForm({...partnerForm, investment: e.target.value.replace(/[^0-9]/g, '')})} 
+                />
+              </div>
+              <button type="submit" className="w-full bg-indigo-600 text-white py-5 rounded-2xl font-black text-lg hover:bg-indigo-700 shadow-xl transition-all">
+                {editingPartner ? 'اعمال تغییرات' : 'ثبت شریک جدید'}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Payment Edit Modal */}
+      {showPaymentModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-[200]">
+          <div className="bg-white rounded-[2.5rem] w-full max-w-md shadow-2xl overflow-hidden animate-fadeIn">
+            <div className="p-8 bg-green-900 text-white flex justify-between items-center">
+              <div>
+                <h3 className="text-2xl font-black">ویرایش سابقه پرداخت</h3>
+                <p className="text-xs text-green-200 mt-1">تغییر جزئیات سود پرداخت شده در گذشته</p>
+              </div>
+              <button onClick={() => setShowPaymentModal(false)} className="text-3xl hover:rotate-90 transition">&times;</button>
+            </div>
+            <form onSubmit={savePaymentEdit} className="p-8 space-y-6">
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-gray-500 mr-2">مبلغ پرداختی (تومان)</label>
+                <input 
+                  required 
+                  type="text"
+                  className="w-full p-4 bg-gray-50 border-2 border-gray-100 rounded-2xl outline-none focus:border-green-600 transition font-black text-xl text-green-700" 
+                  value={toPersianNumbers(paymentForm.amount.replace(/\B(?=(\d{3})+(?!\d))/g, ","))} 
+                  onChange={e => setPaymentForm({...paymentForm, amount: e.target.value.replace(/[^0-9]/g, '')})} 
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-gray-500 mr-2">دوره مالی</label>
+                <input 
+                  required 
+                  className="w-full p-4 bg-gray-50 border-2 border-gray-100 rounded-2xl outline-none focus:border-green-600 transition font-bold" 
+                  value={paymentForm.period} 
+                  onChange={e => setPaymentForm({...paymentForm, period: e.target.value})} 
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-gray-500 mr-2">توضیحات</label>
+                <textarea 
+                  className="w-full p-4 bg-gray-50 border-2 border-gray-100 rounded-2xl outline-none focus:border-green-600 transition font-bold text-sm" 
+                  rows={2}
+                  value={paymentForm.description} 
+                  onChange={e => setPaymentForm({...paymentForm, description: e.target.value})} 
+                />
+              </div>
+              <button type="submit" className="w-full bg-green-700 text-white py-5 rounded-2xl font-black text-lg hover:bg-green-800 shadow-xl transition-all">
+                بروزرسانی سابقه
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
