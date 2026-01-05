@@ -1,7 +1,9 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { AppData, Invoice, InvoiceItem } from '../types';
 import { formatCurrency, toPersianNumbers, getCurrentJalaliDate, formatWithCommas } from '../utils/formatters';
+import html2canvas from 'html2canvas';
+import { jsPDF } from 'jspdf';
 
 interface InvoicesProps {
   data: AppData;
@@ -17,34 +19,59 @@ const Invoices: React.FC<InvoicesProps> = ({ data, setData }) => {
   const [qty, setQty] = useState(1);
   const [searchTerm, setSearchTerm] = useState('');
   const [showPrintModal, setShowPrintModal] = useState<Invoice | null>(null);
+  const [isExporting, setIsExporting] = useState(false);
+  
+  const invoiceRef = useRef<HTMLDivElement>(null);
 
-  // همگام‌سازی فرم با فاکتوری که برای ویرایش انتخاب شده است
+  // بارگذاری اطلاعات فاکتور در فرم هنگام شروع ویرایش
   useEffect(() => {
     if (editingInvoice) {
       setCustomerName(editingInvoice.customerName);
-      setItems(editingInvoice.items);
+      setItems([...editingInvoice.items]);
     } else {
       setCustomerName('');
       setItems([]);
     }
-  }, [editingInvoice]);
+  }, [editingInvoice, showModal]);
 
   const addItem = () => {
     const product = data.products.find(p => p.id === selectedProduct);
     if (!product) return;
     
-    setItems([...items, {
-      productId: product.id,
-      name: product.name,
-      quantity: qty,
-      price: product.sellPrice
-    }]);
+    // اگر کالا قبلاً در لیست بود، تعداد را اضافه کن
+    const existingItemIndex = items.findIndex(item => item.productId === product.id);
+    if (existingItemIndex > -1) {
+      const updatedItems = [...items];
+      updatedItems[existingItemIndex].quantity += qty;
+      setItems(updatedItems);
+    } else {
+      setItems([...items, {
+        productId: product.id,
+        name: product.name,
+        quantity: qty,
+        price: product.sellPrice
+      }]);
+    }
+    
     setQty(1);
     setSelectedProduct('');
   };
 
   const removeItem = (index: number) => {
     setItems(items.filter((_, i) => i !== index));
+  };
+
+  const editItemQuantity = (index: number) => {
+    const item = items[index];
+    const newQty = prompt(`تعداد جدید برای "${item.name}" را وارد کنید:`, item.quantity.toString());
+    if (newQty !== null) {
+      const updatedQty = parseInt(newQty);
+      if (!isNaN(updatedQty) && updatedQty > 0) {
+        const updatedItems = [...items];
+        updatedItems[index].quantity = updatedQty;
+        setItems(updatedItems);
+      }
+    }
   };
 
   const totalAmount = items.reduce((acc, item) => acc + (item.price * item.quantity), 0);
@@ -76,9 +103,51 @@ const Invoices: React.FC<InvoicesProps> = ({ data, setData }) => {
   };
 
   const deleteInvoice = (id: string) => {
-    if (confirm('آیا از حذف این فاکتور از سوابق اطمینان دارید؟')) {
+    if (confirm('آیا از حذف این فاکتور از سوابق اطمینان دارید؟ این عمل غیرقابل بازگشت است.')) {
       setData({ ...data, invoices: data.invoices.filter(i => i.id !== id) });
     }
+  };
+
+  const handleExportImage = async () => {
+    if (!invoiceRef.current) return;
+    setIsExporting(true);
+    try {
+      const canvas = await html2canvas(invoiceRef.current, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: '#ffffff'
+      });
+      const link = document.createElement('a');
+      link.download = `SirjanPoosh-Invoice-${showPrintModal?.id.slice(-5)}.jpg`;
+      link.href = canvas.toDataURL('image/jpeg', 0.9);
+      link.click();
+    } catch (err) {
+      alert('خطا در تولید تصویر فاکتور');
+    }
+    setIsExporting(false);
+  };
+
+  const handleExportPDF = async () => {
+    if (!invoiceRef.current) return;
+    setIsExporting(true);
+    try {
+      const canvas = await html2canvas(invoiceRef.current, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: '#ffffff'
+      });
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF({
+        orientation: 'portrait',
+        unit: 'px',
+        format: [canvas.width / 2, canvas.height / 2]
+      });
+      pdf.addImage(imgData, 'PNG', 0, 0, canvas.width / 2, canvas.height / 2);
+      pdf.save(`SirjanPoosh-Invoice-${showPrintModal?.id.slice(-5)}.pdf`);
+    } catch (err) {
+      alert('خطا در تولید فایل PDF');
+    }
+    setIsExporting(false);
   };
 
   const filteredInvoices = data.invoices.filter(inv => 
@@ -115,33 +184,35 @@ const Invoices: React.FC<InvoicesProps> = ({ data, setData }) => {
               <tr className="bg-indigo-900 text-white">
                 <th className="py-6 px-8 font-black">شماره فاکتور</th>
                 <th className="py-6 px-8 font-black">نام مشتری</th>
-                <th className="py-6 px-8 font-black">مبلغ کل</th>
                 <th className="py-6 px-8 font-black text-center">تاریخ صدور</th>
+                <th className="py-6 px-8 font-black">مبلغ کل</th>
                 <th className="py-6 px-8 font-black text-center">عملیات</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {filteredInvoices.map((inv, index) => (
+              {filteredInvoices.map((inv) => (
                 <tr key={inv.id} className="hover:bg-indigo-50/30 transition-colors group">
                   <td className="py-5 px-8 font-black text-indigo-600">#{toPersianNumbers(inv.id.slice(-5))}</td>
                   <td className="py-5 px-8 font-bold text-gray-800">{inv.customerName}</td>
-                  <td className="py-5 px-8 font-black text-lg text-green-700">{formatCurrency(inv.totalAmount)}</td>
                   <td className="py-5 px-8 text-center text-gray-400 font-bold">{toPersianNumbers(inv.date)}</td>
+                  <td className="py-5 px-8 font-black text-lg text-green-700">{formatCurrency(inv.totalAmount)}</td>
                   <td className="py-5 px-8 text-center">
-                    <div className="flex justify-center gap-3">
+                    <div className="flex justify-center gap-2">
                       <button 
                         onClick={() => setShowPrintModal(inv)} 
-                        className="bg-gray-100 text-gray-600 p-2.5 rounded-xl hover:bg-indigo-100 hover:text-indigo-600 transition shadow-sm"
-                        title="مشاهده و چاپ"
+                        className="bg-gray-100 text-gray-600 p-2.5 rounded-xl hover:bg-indigo-600 hover:text-white transition shadow-sm"
+                        title="چاپ و دانلود"
                       >🖨️</button>
                       <button 
                         onClick={() => { setEditingInvoice(inv); setShowModal(true); }} 
-                        className="bg-blue-50 text-blue-600 px-4 py-2 rounded-xl font-black text-xs hover:bg-blue-100 transition shadow-sm"
-                      >ویرایش</button>
+                        className="bg-blue-50 text-blue-600 p-2.5 rounded-xl hover:bg-blue-600 hover:text-white transition shadow-sm"
+                        title="ویرایش فاکتور"
+                      >📝</button>
                       <button 
                         onClick={() => deleteInvoice(inv.id)} 
-                        className="bg-red-50 text-red-500 px-4 py-2 rounded-xl font-black text-xs hover:bg-red-100 transition shadow-sm"
-                      >حذف</button>
+                        className="bg-red-50 text-red-500 p-2.5 rounded-xl hover:bg-red-600 hover:text-white transition shadow-sm"
+                        title="حذف فاکتور"
+                      >🗑️</button>
                     </div>
                   </td>
                 </tr>
@@ -163,7 +234,7 @@ const Invoices: React.FC<InvoicesProps> = ({ data, setData }) => {
                 <h3 className="text-2xl font-black">{editingInvoice ? 'ویرایش فاکتور' : 'صدور فاکتور جدید'}</h3>
                 <p className="text-xs text-indigo-300 mt-1">مشخصات خریدار و اقلام را وارد کنید</p>
               </div>
-              <button onClick={() => setShowModal(false)} className="text-4xl hover:rotate-90 transition text-indigo-300">&times;</button>
+              <button onClick={() => { setShowModal(false); setEditingInvoice(null); }} className="text-4xl hover:rotate-90 transition text-indigo-300">&times;</button>
             </div>
             
             <div className="p-10 space-y-8 overflow-y-auto flex-1 custom-scrollbar">
@@ -198,7 +269,7 @@ const Invoices: React.FC<InvoicesProps> = ({ data, setData }) => {
                   >
                     <option value="">انتخاب کالا از انبار...</option>
                     {data.products.map(p => (
-                      <option key={p.id} value={p.id}>{p.name} - موجودی: {toPersianNumbers(p.quantity)} عدد</option>
+                      <option key={p.id} value={p.id}>{p.name} - قیمت: {formatCurrency(p.sellPrice)}</option>
                     ))}
                   </select>
                   <div className="flex gap-2">
@@ -220,7 +291,7 @@ const Invoices: React.FC<InvoicesProps> = ({ data, setData }) => {
               {/* Items List */}
               <div className="rounded-[2rem] border-2 border-gray-50 overflow-hidden shadow-inner">
                 <table className="w-full text-right">
-                  <thead className="bg-gray-50 text-gray-400 text-xs uppercase tracking-widest font-black">
+                  <thead className="bg-gray-50 text-gray-400 text-[10px] uppercase tracking-widest font-black">
                     <tr>
                       <th className="py-4 px-6">نام کالا</th>
                       <th className="py-4 px-6 text-center">تعداد</th>
@@ -234,16 +305,23 @@ const Invoices: React.FC<InvoicesProps> = ({ data, setData }) => {
                       <tr key={idx} className="bg-white hover:bg-gray-50 transition-colors">
                         <td className="py-4 px-6 font-bold text-gray-700">{item.name}</td>
                         <td className="py-4 px-6 text-center">
-                          <span className="bg-gray-100 px-3 py-1 rounded-lg font-black text-indigo-900">{toPersianNumbers(item.quantity)}</span>
+                          <span className="bg-indigo-50 text-indigo-700 px-3 py-1 rounded-lg font-black">{toPersianNumbers(item.quantity)}</span>
                         </td>
                         <td className="py-4 px-6 text-xs text-gray-400 font-bold">{formatCurrency(item.price)}</td>
                         <td className="py-4 px-6 font-black text-indigo-600">{formatCurrency(item.price * item.quantity)}</td>
                         <td className="py-4 px-6 text-center">
-                          <button 
-                            onClick={() => removeItem(idx)} 
-                            className="text-red-400 hover:text-red-600 text-xl transition"
-                            title="حذف از لیست"
-                          >🗑️</button>
+                          <div className="flex justify-center gap-3">
+                            <button 
+                              onClick={() => editItemQuantity(idx)} 
+                              className="text-blue-500 hover:text-blue-700 transition"
+                              title="ویرایش تعداد"
+                            >📝</button>
+                            <button 
+                              onClick={() => removeItem(idx)} 
+                              className="text-red-400 hover:text-red-600 transition"
+                              title="حذف کالا"
+                            >🗑️</button>
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -271,12 +349,28 @@ const Invoices: React.FC<InvoicesProps> = ({ data, setData }) => {
         </div>
       )}
 
-      {/* Print View Modal */}
+      {/* Print & Export View Modal */}
       {showPrintModal && (
         <div className="fixed inset-0 bg-white z-[200] p-4 md:p-10 overflow-auto animate-fadeIn">
-          <div className="max-w-3xl mx-auto border-4 border-indigo-950 p-6 md:p-12 rounded-[3rem] shadow-2xl bg-white relative">
+          <div className="max-w-4xl mx-auto flex flex-col gap-6 no-print mb-10">
+            <div className="flex flex-wrap gap-3 justify-center">
+              <button onClick={() => window.print()} className="bg-indigo-600 text-white px-8 py-4 rounded-2xl font-black hover:bg-indigo-700 shadow-xl transition-all flex items-center gap-3">
+                <span>🖨️</span> چاپ فاکتور
+              </button>
+              <button onClick={handleExportPDF} disabled={isExporting} className="bg-red-600 text-white px-8 py-4 rounded-2xl font-black hover:bg-red-700 shadow-xl transition-all flex items-center gap-3 disabled:opacity-50">
+                <span>📄</span> {isExporting ? 'در حال پردازش...' : 'دانلود PDF'}
+              </button>
+              <button onClick={handleExportImage} disabled={isExporting} className="bg-green-600 text-white px-8 py-4 rounded-2xl font-black hover:bg-green-700 shadow-xl transition-all flex items-center gap-3 disabled:opacity-50">
+                <span>🖼️</span> {isExporting ? 'در حال پردازش...' : 'دانلود تصویر (JPG)'}
+              </button>
+              <button onClick={() => setShowPrintModal(null)} className="bg-gray-100 text-gray-500 px-8 py-4 rounded-2xl font-black hover:bg-gray-200 transition">
+                بازگشت
+              </button>
+            </div>
+          </div>
+
+          <div ref={invoiceRef} className="max-w-3xl mx-auto border-4 border-indigo-950 p-6 md:p-12 rounded-[3rem] shadow-2xl bg-white relative">
             <div className="absolute top-8 left-8 opacity-5 text-8xl -rotate-12 select-none">SIRJAN POOSH</div>
-            
             <div className="flex justify-between items-center border-b-4 border-indigo-950 pb-8 mb-10">
               <div className="flex items-center gap-4">
                 <div className="bg-indigo-950 text-white p-4 rounded-3xl text-3xl">👕</div>
@@ -293,11 +387,9 @@ const Invoices: React.FC<InvoicesProps> = ({ data, setData }) => {
                 </div>
               </div>
             </div>
-
             <div className="mb-10 bg-indigo-50/50 p-6 rounded-3xl border-2 border-indigo-100">
               <p className="font-black text-indigo-900">نام خریدار گرامی: <span className="mr-2 font-bold text-gray-700 underline underline-offset-8 decoration-indigo-200">{showPrintModal.customerName}</span></p>
             </div>
-
             <table className="w-full border-collapse mb-10 overflow-hidden rounded-2xl">
               <thead>
                 <tr className="bg-indigo-950 text-white">
@@ -324,31 +416,13 @@ const Invoices: React.FC<InvoicesProps> = ({ data, setData }) => {
                 </tr>
               </tbody>
             </table>
-
             <div className="grid grid-cols-2 gap-20 mt-24 mb-10 text-center">
               <div>
-                <div className="h-20 flex items-center justify-center opacity-10">مهر فروشگاه</div>
                 <p className="font-black text-indigo-900 border-t-2 border-indigo-100 pt-4">مهر و امضای فروشنده</p>
               </div>
               <div>
-                <div className="h-20 flex items-center justify-center opacity-10">امضا</div>
                 <p className="font-black text-gray-500 border-t-2 border-gray-100 pt-4">امضای خریدار</p>
               </div>
-            </div>
-
-            <div className="no-print mt-12 flex flex-col md:flex-row gap-4 justify-center">
-              <button 
-                onClick={() => window.print()} 
-                className="bg-indigo-600 text-white px-12 py-4 rounded-2xl font-black hover:bg-indigo-700 shadow-xl shadow-indigo-200 transition-all flex items-center justify-center gap-3"
-              >
-                <span>🖨️</span> چاپ مستقیم فاکتور
-              </button>
-              <button 
-                onClick={() => setShowPrintModal(null)} 
-                className="bg-gray-100 text-gray-500 px-12 py-4 rounded-2xl font-black hover:bg-gray-200 transition"
-              >
-                بازگشت به پنل
-              </button>
             </div>
           </div>
         </div>
