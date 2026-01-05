@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { AppData, Product } from '../types';
-import { formatCurrency, toPersianNumbers, getCurrentJalaliDate, parseRawNumber, toEnglishDigits } from '../utils/formatters';
+import { formatCurrency, toPersianNumbers, getCurrentJalaliDate, parseRawNumber, toEnglishDigits, formatWithCommas } from '../utils/formatters';
 import * as XLSX from 'xlsx';
 
 interface InventoryProps {
@@ -16,19 +16,24 @@ const Inventory: React.FC<InventoryProps> = ({ data, setData }) => {
   const [formData, setFormData] = useState({
     code: '', 
     name: '', 
-    buyPrice: '0', 
-    shippingCost: '0', 
-    marginPercent: '0', 
-    quantity: '0'
+    buyPrice: '', 
+    shippingCost: '', 
+    marginPercent: '', 
+    quantity: ''
   });
+
+  // محاسبه قیمت تمام شده: خرید + کرایه
+  const calculateTotalCost = () => {
+    const buyPrice = parseRawNumber(formData.buyPrice);
+    const shipping = parseRawNumber(formData.shippingCost);
+    return buyPrice + shipping;
+  };
 
   // محاسبه قیمت نهایی فروش: (خرید + کرایه) * (1 + درصد سود/100)
   const calculateFinalPrice = () => {
-    const buyPrice = parseRawNumber(formData.buyPrice);
-    const shipping = parseRawNumber(formData.shippingCost);
+    const totalCost = calculateTotalCost();
     const margin = parseRawNumber(formData.marginPercent);
-    const baseCost = buyPrice + shipping;
-    const finalPrice = baseCost + (baseCost * (margin / 100));
+    const finalPrice = totalCost + (totalCost * (margin / 100));
     return Math.round(finalPrice);
   };
 
@@ -56,18 +61,13 @@ const Inventory: React.FC<InventoryProps> = ({ data, setData }) => {
     
     setShowModal(false);
     setEditingProduct(null);
-    setFormData({ code: '', name: '', buyPrice: '0', shippingCost: '0', marginPercent: '0', quantity: '0' });
+    setFormData({ code: '', name: '', buyPrice: '', shippingCost: '', marginPercent: '', quantity: '' });
   };
 
-  const handlePriceChange = (field: string, value: string) => {
-    // تبدیل اعداد فارسی به انگلیسی و حذف کاراکترهای اضافه مثل کاما
+  const handleNumericChange = (field: string, value: string) => {
+    // تبدیل اعداد فارسی به انگلیسی و حذف کاراکترهای غیر عددی (به جز کاما که در نمایش هست)
     const cleanValue = toEnglishDigits(value).replace(/[^0-9]/g, '');
     setFormData({ ...formData, [field]: cleanValue });
-  };
-
-  const formatWithCommas = (val: string) => {
-    if (!val || val === '0') return '';
-    return val.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
   };
 
   const deleteProduct = (id: string) => {
@@ -111,7 +111,7 @@ const Inventory: React.FC<InventoryProps> = ({ data, setData }) => {
         </div>
         <div className="flex gap-3 w-full md:w-auto">
           <button 
-            onClick={() => { setEditingProduct(null); setShowModal(true); }}
+            onClick={() => { setEditingProduct(null); setFormData({ code: '', name: '', buyPrice: '', shippingCost: '', marginPercent: '', quantity: '' }); setShowModal(true); }}
             className="flex-1 md:flex-none bg-indigo-600 text-white px-8 py-4 rounded-2xl font-black hover:bg-indigo-700 shadow-xl shadow-indigo-100 transition-all active:scale-95 flex items-center justify-center gap-2"
           >
             <span className="text-xl">+</span> ثبت کالای جدید
@@ -198,16 +198,16 @@ const Inventory: React.FC<InventoryProps> = ({ data, setData }) => {
               </div>
 
               <div className="bg-indigo-50 p-8 rounded-[2rem] border-2 border-dashed border-indigo-200 space-y-6">
-                <h4 className="font-black text-indigo-900 text-center mb-2">محاسبه قیمت تمام شده و سود</h4>
+                <h4 className="font-black text-indigo-900 text-center mb-2">محاسبه قیمت تمام شده و سود فروش</h4>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="space-y-2">
                     <label className="text-xs font-black text-gray-500 mr-2">قیمت خرید (تومان)</label>
                     <input 
                       type="text" 
-                      placeholder="0"
+                      placeholder="وارد کنید..."
                       className="w-full p-4 border-2 border-white rounded-2xl outline-none focus:border-indigo-500 font-black text-indigo-600 shadow-sm" 
                       value={toPersianNumbers(formatWithCommas(formData.buyPrice))} 
-                      onChange={e => handlePriceChange('buyPrice', e.target.value)} 
+                      onChange={e => handleNumericChange('buyPrice', e.target.value)} 
                       required 
                     />
                   </div>
@@ -215,39 +215,39 @@ const Inventory: React.FC<InventoryProps> = ({ data, setData }) => {
                     <label className="text-xs font-black text-gray-500 mr-2">هزینه کرایه حمل (تومان)</label>
                     <input 
                       type="text" 
-                      placeholder="0"
+                      placeholder="وارد کنید..."
                       className="w-full p-4 border-2 border-white rounded-2xl outline-none focus:border-indigo-500 font-black shadow-sm" 
                       value={toPersianNumbers(formatWithCommas(formData.shippingCost))} 
-                      onChange={e => handlePriceChange('shippingCost', e.target.value)} 
+                      onChange={e => handleNumericChange('shippingCost', e.target.value)} 
                     />
                   </div>
                   <div className="space-y-2">
-                    <label className="text-xs font-black text-gray-500 mr-2">درصد سود (٪)</label>
+                    <label className="text-xs font-black text-gray-500 mr-2">درصد سود فروش (٪)</label>
                     <input 
                       type="text" 
-                      placeholder="0"
+                      placeholder="مثلاً: ۲۰"
                       className="w-full p-4 border-2 border-white rounded-2xl outline-none focus:border-indigo-500 font-black shadow-sm" 
                       value={toPersianNumbers(formData.marginPercent)} 
-                      onChange={e => handlePriceChange('marginPercent', e.target.value)} 
+                      onChange={e => handleNumericChange('marginPercent', e.target.value)} 
                     />
                   </div>
                 </div>
                 
-                <div className="flex flex-col md:flex-row items-center justify-between gap-4 pt-4 border-t border-indigo-200">
-                  <div className="text-center md:text-right">
-                    <p className="text-xs font-black text-gray-400">قیمت تمام شده برای شما:</p>
-                    <p className="font-black text-gray-700">{formatCurrency(parseRawNumber(formData.buyPrice) + parseRawNumber(formData.shippingCost))}</p>
+                <div className="flex flex-col md:flex-row items-center justify-between gap-4 pt-6 border-t border-indigo-200">
+                  <div className="text-center md:text-right bg-white/60 p-4 rounded-2xl border border-white">
+                    <p className="text-xs font-black text-gray-400">قیمت تمام شده (خرید + کرایه):</p>
+                    <p className="font-black text-xl text-gray-700">{formatCurrency(calculateTotalCost())}</p>
                   </div>
-                  <div className="text-center md:text-left">
-                    <p className="text-xs font-black text-indigo-400 uppercase tracking-widest">قیمت نهایی فروش (با احتساب سود):</p>
-                    <p className="text-4xl font-black text-indigo-700">{formatCurrency(calculateFinalPrice())}</p>
+                  <div className="text-center md:text-left bg-indigo-600 p-6 rounded-[1.5rem] shadow-xl shadow-indigo-200">
+                    <p className="text-[10px] font-black text-indigo-100 uppercase tracking-widest mb-1">قیمت نهایی فروش (با احتساب سود):</p>
+                    <p className="text-4xl font-black text-white">{formatCurrency(calculateFinalPrice())}</p>
                   </div>
                 </div>
               </div>
 
               <div className="space-y-2">
                 <label className="text-sm font-black text-gray-600 mr-2">تعداد موجودی در انبار</label>
-                <input type="text" placeholder="0" className="w-full p-4 border-2 border-gray-100 rounded-[1.5rem] outline-none focus:border-indigo-500 font-black text-xl text-center bg-gray-50" value={toPersianNumbers(formData.quantity)} onChange={e => handlePriceChange('quantity', e.target.value)} required />
+                <input type="text" placeholder="مثلاً: ۵۰" className="w-full p-4 border-2 border-gray-100 rounded-[1.5rem] outline-none focus:border-indigo-500 font-black text-xl text-center bg-gray-50" value={toPersianNumbers(formData.quantity)} onChange={e => handleNumericChange('quantity', e.target.value)} required />
               </div>
               
               <button type="submit" className="w-full bg-indigo-600 text-white py-6 rounded-[1.5rem] font-black text-2xl hover:bg-indigo-700 shadow-2xl shadow-indigo-200 transition-all active:scale-95">

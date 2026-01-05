@@ -5,7 +5,7 @@ export const toPersianNumbers = (str: string | number): string => {
 };
 
 export const toEnglishDigits = (str: string | number): string => {
-  const persianDigits = [/۰/g, /۱/g, /۲/g, /۳/g, /۴/g, /۵/g, /۶/g, /۷/g, /۸/g, /۹/g];
+  const persianDigits = [/۰/g, /۱/g, /۲/g, /۳/g, /۴/g, /۵/g, /٦/g, /۷/g, /۸/g, /۹/g];
   const arabicDigits = [/٠/g, /١/g, /٢/g, /٣/g, /٤/g, /٥/g, /٦/g, /٧/g, /٨/g, /٩/g];
   let res = String(str);
   for (let i = 0; i < 10; i++) {
@@ -14,8 +14,14 @@ export const toEnglishDigits = (str: string | number): string => {
   return res;
 };
 
+export const formatWithCommas = (val: string | number): string => {
+  const num = String(val).replace(/[^0-9]/g, '');
+  if (!num) return '';
+  return num.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+};
+
 export const formatCurrency = (amount: number): string => {
-  const formatted = new Intl.NumberFormat('fa-IR').format(amount);
+  const formatted = new Intl.NumberFormat('en-US').format(amount);
   return toPersianNumbers(formatted) + ' تومان';
 };
 
@@ -34,8 +40,8 @@ export const getCurrentJalaliDate = (): string => {
   return toPersianNumbers(`${year}/${month}/${day}`);
 };
 
-export const parseRawNumber = (str: string): number => {
-  // ابتدا تبدیل به انگلیسی و سپس حذف هر چیزی غیر از عدد
+export const parseRawNumber = (str: string | number): number => {
+  if (typeof str === 'number') return str;
   const engStr = toEnglishDigits(str);
   return Number(engStr.replace(/[^0-9]/g, '')) || 0;
 };
