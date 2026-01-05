@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { AppData, Partner, PaymentHistory } from '../types';
-import { formatCurrency, toPersianNumbers, getCurrentJalaliDate, parseRawNumber } from '../utils/formatters';
+import { formatCurrency, toPersianNumbers, getCurrentJalaliDate, parseRawNumber, toEnglishDigits, formatWithCommas } from '../utils/formatters';
 
 interface PartnersProps {
   data: AppData;
@@ -9,25 +9,32 @@ interface PartnersProps {
 }
 
 const Partners: React.FC<PartnersProps> = ({ data, setData }) => {
-  const [monthlyProfit, setMonthlyProfit] = useState<string>('0');
+  const [monthlyProfit, setMonthlyProfit] = useState<string>('');
   const [selectedPeriod, setSelectedPeriod] = useState('۱۴۰۴/۰۱');
   const [searchTerm, setSearchTerm] = useState('');
   
   // Partner Modal State
   const [showPartnerModal, setShowPartnerModal] = useState(false);
   const [editingPartner, setEditingPartner] = useState<Partner | null>(null);
-  const [partnerForm, setPartnerForm] = useState({ name: '', investment: '0' });
+  const [partnerForm, setPartnerForm] = useState({ name: '', investment: '' });
 
   // Payment Modal State (for editing past payments)
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [editingPayment, setEditingPayment] = useState<PaymentHistory | null>(null);
-  const [paymentForm, setPaymentForm] = useState({ amount: '0', period: '', description: '' });
+  const [paymentForm, setPaymentForm] = useState({ amount: '', period: '', description: '' });
 
   const totalInvestment = data.partners.reduce((acc, p) => acc + p.investment, 0);
 
   const calculateShare = (investment: number) => {
     if (totalInvestment === 0) return 0;
-    return (investment / totalInvestment) * parseRawNumber(monthlyProfit);
+    const profit = parseRawNumber(monthlyProfit);
+    return (investment / totalInvestment) * profit;
+  };
+
+  // --- Helper for Numeric Inputs ---
+  const handleNumericChange = (setter: (val: string) => void, value: string) => {
+    const cleanValue = toEnglishDigits(value).replace(/[^0-9]/g, '');
+    setter(cleanValue);
   };
 
   // --- Partner Actions ---
@@ -47,11 +54,11 @@ const Partners: React.FC<PartnersProps> = ({ data, setData }) => {
     }
     setShowPartnerModal(false);
     setEditingPartner(null);
-    setPartnerForm({ name: '', investment: '0' });
+    setPartnerForm({ name: '', investment: '' });
   };
 
   const deletePartner = (id: string) => {
-    if (confirm('آیا از حذف این شریک اطمینان دارید؟ تمام سوابق پرداخت وی نیز حفظ خواهد شد اما محاسبات جدید تغییر می‌کند.')) {
+    if (confirm('آیا از حذف این شریک اطمینان دارید؟')) {
       setData({ ...data, partners: data.partners.filter(p => p.id !== id) });
     }
   };
@@ -74,7 +81,7 @@ const Partners: React.FC<PartnersProps> = ({ data, setData }) => {
     }));
 
     setData({ ...data, payments: [...data.payments, ...newPayments] });
-    setMonthlyProfit('0');
+    setMonthlyProfit('');
     alert('سود با موفقیت تقسیم و ثبت شد.');
   };
 
@@ -118,7 +125,7 @@ const Partners: React.FC<PartnersProps> = ({ data, setData }) => {
               <span className="bg-indigo-100 p-3 rounded-2xl text-2xl">🤝</span> لیست شرکا و سرمایه
             </h3>
             <button 
-              onClick={() => { setEditingPartner(null); setPartnerForm({ name: '', investment: '0' }); setShowPartnerModal(true); }}
+              onClick={() => { setEditingPartner(null); setPartnerForm({ name: '', investment: '' }); setShowPartnerModal(true); }}
               className="bg-indigo-600 text-white px-5 py-2 rounded-xl font-bold hover:bg-indigo-700 transition text-sm shadow-lg shadow-indigo-100"
             >
               + افزودن شریک
@@ -172,9 +179,10 @@ const Partners: React.FC<PartnersProps> = ({ data, setData }) => {
               <label className="block text-sm font-bold text-gray-600 mb-2 mr-2">مبلغ سود خالص دوره (تومان)</label>
               <input 
                 type="text" 
+                placeholder="مبلغ را وارد کنید..."
                 className="w-full p-5 border-2 border-gray-100 bg-gray-50 rounded-[2rem] text-3xl font-black text-center text-indigo-600 outline-none focus:border-indigo-500 focus:bg-white transition-all shadow-inner"
-                value={toPersianNumbers(monthlyProfit.replace(/\B(?=(\d{3})+(?!\d))/g, ","))}
-                onChange={e => setMonthlyProfit(e.target.value.replace(/[^0-9]/g, ''))}
+                value={toPersianNumbers(formatWithCommas(monthlyProfit))}
+                onChange={e => handleNumericChange(setMonthlyProfit, e.target.value)}
               />
             </div>
             <div>
@@ -293,8 +301,8 @@ const Partners: React.FC<PartnersProps> = ({ data, setData }) => {
                   required 
                   type="text"
                   className="w-full p-4 bg-gray-50 border-2 border-gray-100 rounded-2xl outline-none focus:border-indigo-500 transition font-black text-xl text-indigo-700" 
-                  value={toPersianNumbers(partnerForm.investment.replace(/\B(?=(\d{3})+(?!\d))/g, ","))} 
-                  onChange={e => setPartnerForm({...partnerForm, investment: e.target.value.replace(/[^0-9]/g, '')})} 
+                  value={toPersianNumbers(formatWithCommas(partnerForm.investment))} 
+                  onChange={e => handleNumericChange((v) => setPartnerForm({...partnerForm, investment: v}), e.target.value)} 
                 />
               </div>
               <button type="submit" className="w-full bg-indigo-600 text-white py-5 rounded-2xl font-black text-lg hover:bg-indigo-700 shadow-xl transition-all">
@@ -323,8 +331,8 @@ const Partners: React.FC<PartnersProps> = ({ data, setData }) => {
                   required 
                   type="text"
                   className="w-full p-4 bg-gray-50 border-2 border-gray-100 rounded-2xl outline-none focus:border-green-600 transition font-black text-xl text-green-700" 
-                  value={toPersianNumbers(paymentForm.amount.replace(/\B(?=(\d{3})+(?!\d))/g, ","))} 
-                  onChange={e => setPaymentForm({...paymentForm, amount: e.target.value.replace(/[^0-9]/g, '')})} 
+                  value={toPersianNumbers(formatWithCommas(paymentForm.amount))} 
+                  onChange={e => handleNumericChange((v) => setPaymentForm({...paymentForm, amount: v}), e.target.value)} 
                 />
               </div>
               <div className="space-y-2">
