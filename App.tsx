@@ -115,7 +115,7 @@ const App: React.FC = () => {
 
         <main className="mb-24 md:mb-0">
           {activeTab === 'dashboard' && canAccess('dashboard') && <Dashboard data={data} />}
-          {activeTab === 'inventory' && canAccess('inventory') && <Inventory data={data} setData={setData} />}
+          {activeTab === 'inventory' && canAccess('inventory') && <Inventory data={data} setData={setData} currentUser={currentUser} />}
           {activeTab === 'partners' && canAccess('partners') && <Partners data={data} setData={setData} />}
           {activeTab === 'invoices' && canAccess('invoices') && <Invoices data={data} setData={setData} />}
           {activeTab === 'users' && canAccess('users') && <Users data={data} setData={setData} />}

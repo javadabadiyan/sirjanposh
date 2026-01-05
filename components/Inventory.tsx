@@ -1,15 +1,16 @@
 
 import React, { useState } from 'react';
-import { AppData, Product } from '../types';
+import { AppData, Product, User } from '../types';
 import { formatCurrency, toPersianNumbers, getCurrentJalaliDate, parseRawNumber, toEnglishDigits, formatWithCommas } from '../utils/formatters';
 import * as XLSX from 'xlsx';
 
 interface InventoryProps {
   data: AppData;
   setData: (data: AppData) => void;
+  currentUser: User;
 }
 
-const Inventory: React.FC<InventoryProps> = ({ data, setData }) => {
+const Inventory: React.FC<InventoryProps> = ({ data, setData, currentUser }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
@@ -19,7 +20,8 @@ const Inventory: React.FC<InventoryProps> = ({ data, setData }) => {
     buyPrice: '', 
     shippingCost: '', 
     marginPercent: '', 
-    quantity: ''
+    quantity: '',
+    date: getCurrentJalaliDate()
   });
 
   // محاسبه قیمت تمام شده: خرید + کرایه
@@ -50,7 +52,8 @@ const Inventory: React.FC<InventoryProps> = ({ data, setData }) => {
       marginPercent: parseRawNumber(formData.marginPercent),
       quantity: parseRawNumber(formData.quantity),
       sellPrice: finalPrice,
-      date: editingProduct ? editingProduct.date : getCurrentJalaliDate()
+      date: formData.date || getCurrentJalaliDate(),
+      registeredBy: editingProduct ? editingProduct.registeredBy : currentUser.username
     };
 
     if (editingProduct) {
@@ -61,7 +64,7 @@ const Inventory: React.FC<InventoryProps> = ({ data, setData }) => {
     
     setShowModal(false);
     setEditingProduct(null);
-    setFormData({ code: '', name: '', buyPrice: '', shippingCost: '', marginPercent: '', quantity: '' });
+    setFormData({ code: '', name: '', buyPrice: '', shippingCost: '', marginPercent: '', quantity: '', date: getCurrentJalaliDate() });
   };
 
   const handleNumericChange = (field: string, value: string) => {
@@ -85,7 +88,8 @@ const Inventory: React.FC<InventoryProps> = ({ data, setData }) => {
       'درصد سود (%)': p.marginPercent,
       'قیمت فروش نهایی (تومان)': p.sellPrice,
       'تعداد': p.quantity,
-      'تاریخ ثبت': p.date
+      'تاریخ ثبت': p.date,
+      'ثبت توسط': p.registeredBy || 'نامشخص'
     }));
     const ws = XLSX.utils.json_to_sheet(wsData);
     const wb = XLSX.utils.book_new();
@@ -111,7 +115,7 @@ const Inventory: React.FC<InventoryProps> = ({ data, setData }) => {
         </div>
         <div className="flex gap-3 w-full md:w-auto">
           <button 
-            onClick={() => { setEditingProduct(null); setFormData({ code: '', name: '', buyPrice: '', shippingCost: '', marginPercent: '', quantity: '' }); setShowModal(true); }}
+            onClick={() => { setEditingProduct(null); setFormData({ code: '', name: '', buyPrice: '', shippingCost: '', marginPercent: '', quantity: '', date: getCurrentJalaliDate() }); setShowModal(true); }}
             className="flex-1 md:flex-none bg-indigo-600 text-white px-8 py-4 rounded-2xl font-black hover:bg-indigo-700 shadow-xl shadow-indigo-100 transition-all active:scale-95 flex items-center justify-center gap-2"
           >
             <span className="text-xl">+</span> ثبت کالای جدید
@@ -127,46 +131,50 @@ const Inventory: React.FC<InventoryProps> = ({ data, setData }) => {
         <div className="overflow-x-auto">
           <table className="w-full text-right">
             <thead>
-              <tr className="bg-indigo-900 text-white">
-                <th className="py-6 px-8 font-black">کد</th>
-                <th className="py-6 px-8 font-black">نام محصول</th>
-                <th className="py-6 px-8 font-black">قیمت فروش</th>
-                <th className="py-6 px-8 font-black text-center">تعداد</th>
-                <th className="py-6 px-8 font-black text-center">عملیات</th>
+              <tr className="bg-indigo-900 text-white text-xs md:text-sm">
+                <th className="py-6 px-4 font-black">کد</th>
+                <th className="py-6 px-4 font-black">نام محصول</th>
+                <th className="py-6 px-4 font-black">قیمت فروش</th>
+                <th className="py-6 px-4 font-black text-center">تعداد</th>
+                <th className="py-6 px-4 font-black text-center">تاریخ</th>
+                <th className="py-6 px-4 font-black text-center">ثبت توسط</th>
+                <th className="py-6 px-4 font-black text-center">عملیات</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
               {filtered.map(p => (
                 <tr key={p.id} className="hover:bg-indigo-50/30 transition-colors group">
-                  <td className="py-5 px-8 font-black text-indigo-600">{toPersianNumbers(p.code)}</td>
-                  <td className="py-5 px-8 font-bold text-gray-800">{p.name}</td>
-                  <td className="py-5 px-8 font-black text-lg text-indigo-900">{formatCurrency(p.sellPrice)}</td>
-                  <td className="py-5 px-8 text-center">
-                    <span className={`px-4 py-1.5 rounded-full text-xs font-black ${p.quantity > 5 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                  <td className="py-5 px-4 font-black text-indigo-600">{toPersianNumbers(p.code)}</td>
+                  <td className="py-5 px-4 font-bold text-gray-800">{p.name}</td>
+                  <td className="py-5 px-4 font-black text-lg text-indigo-900">{formatCurrency(p.sellPrice)}</td>
+                  <td className="py-5 px-4 text-center">
+                    <span className={`px-4 py-1.5 rounded-full text-[10px] md:text-xs font-black ${p.quantity > 5 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
                       {toPersianNumbers(p.quantity)} عدد
                     </span>
                   </td>
-                  <td className="py-5 px-8 text-center">
-                    <div className="flex justify-center gap-4">
+                  <td className="py-5 px-4 text-center text-xs text-gray-400 font-bold">{toPersianNumbers(p.date)}</td>
+                  <td className="py-5 px-4 text-center text-xs text-indigo-400 font-black">{p.registeredBy || '---'}</td>
+                  <td className="py-5 px-4 text-center">
+                    <div className="flex justify-center gap-2">
                       <button 
                         onClick={() => {
                           setEditingProduct(p);
                           setFormData({
                             code: p.code, name: p.name, buyPrice: p.buyPrice.toString(),
                             shippingCost: p.shippingCost.toString(), marginPercent: p.marginPercent.toString(),
-                            quantity: p.quantity.toString()
+                            quantity: p.quantity.toString(), date: p.date
                           });
                           setShowModal(true);
                         }}
-                        className="text-blue-600 font-black hover:bg-blue-50 px-3 py-1.5 rounded-xl transition"
+                        className="text-blue-600 font-black hover:bg-blue-50 px-2 py-1 rounded-lg transition text-xs"
                       >ویرایش</button>
-                      <button onClick={() => deleteProduct(p.id)} className="text-red-500 font-black hover:bg-red-50 px-3 py-1.5 rounded-xl transition">حذف</button>
+                      <button onClick={() => deleteProduct(p.id)} className="text-red-500 font-black hover:bg-red-50 px-2 py-1 rounded-lg transition text-xs">حذف</button>
                     </div>
                   </td>
                 </tr>
               ))}
               {filtered.length === 0 && (
-                <tr><td colSpan={5} className="py-24 text-center text-gray-400 font-black text-xl">هیچ کالایی در لیست انبار موجود نیست</td></tr>
+                <tr><td colSpan={7} className="py-24 text-center text-gray-400 font-black text-xl">هیچ کالایی در لیست انبار موجود نیست</td></tr>
               )}
             </tbody>
           </table>
@@ -194,6 +202,17 @@ const Inventory: React.FC<InventoryProps> = ({ data, setData }) => {
                 <div className="space-y-2">
                   <label className="text-sm font-black text-gray-600 mr-2">نام کالا (نوع پوشاک)</label>
                   <input required placeholder="مثلاً: پیراهن مردانه نخی" className="w-full p-4 border-2 border-gray-100 rounded-[1.5rem] outline-none focus:border-indigo-500 font-bold bg-gray-50 transition-all" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <label className="text-sm font-black text-gray-600 mr-2">تاریخ ثبت (شمسی)</label>
+                  <input required placeholder="مثلاً: ۱۴۰۴/۰۱/۲۰" className="w-full p-4 border-2 border-gray-100 rounded-[1.5rem] outline-none focus:border-indigo-500 font-bold bg-gray-50 transition-all text-center" value={formData.date} onChange={e => setFormData({...formData, date: e.target.value})} />
+                </div>
+                <div className="space-y-2">
+                   <label className="text-sm font-black text-gray-600 mr-2">تعداد موجودی</label>
+                   <input type="text" placeholder="مثلاً: ۵۰" className="w-full p-4 border-2 border-gray-100 rounded-[1.5rem] outline-none focus:border-indigo-500 font-black text-xl text-center bg-gray-50" value={toPersianNumbers(formData.quantity)} onChange={e => handleNumericChange('quantity', e.target.value)} required />
                 </div>
               </div>
 
@@ -245,9 +264,12 @@ const Inventory: React.FC<InventoryProps> = ({ data, setData }) => {
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <label className="text-sm font-black text-gray-600 mr-2">تعداد موجودی در انبار</label>
-                <input type="text" placeholder="مثلاً: ۵۰" className="w-full p-4 border-2 border-gray-100 rounded-[1.5rem] outline-none focus:border-indigo-500 font-black text-xl text-center bg-gray-50" value={toPersianNumbers(formData.quantity)} onChange={e => handleNumericChange('quantity', e.target.value)} required />
+              <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100 flex items-center gap-3">
+                 <span className="text-xl">👤</span>
+                 <div>
+                    <p className="text-[10px] font-black text-gray-400 uppercase">کاربر ثبت کننده:</p>
+                    <p className="text-sm font-black text-indigo-900">{editingProduct ? editingProduct.registeredBy : currentUser.username}</p>
+                 </div>
               </div>
               
               <button type="submit" className="w-full bg-indigo-600 text-white py-6 rounded-[1.5rem] font-black text-2xl hover:bg-indigo-700 shadow-2xl shadow-indigo-200 transition-all active:scale-95">

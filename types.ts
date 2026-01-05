@@ -9,6 +9,7 @@ export interface Product {
   sellPrice: number;
   quantity: number;
   date: string;
+  registeredBy: string; // فیلد جدید برای ذخیره نام کاربر ثبت‌کننده
 }
 
 export interface Partner {
