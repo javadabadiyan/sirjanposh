@@ -13,7 +13,6 @@ import { getCurrentJalaliDate } from './utils/formatters';
 
 const INITIAL_DATA: AppData = {
   products: [],
-  // Fixed: Updated partner objects to use investments array instead of investment property
   partners: [
     { 
       id: '1', 
@@ -41,14 +40,47 @@ const INITIAL_DATA: AppData = {
 
 const App: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<User | null>(() => {
-    const savedSession = localStorage.getItem('sirjan_poosh_session');
-    return savedSession ? JSON.parse(savedSession) : null;
+    try {
+      const savedSession = localStorage.getItem('sirjan_poosh_session');
+      return savedSession ? JSON.parse(savedSession) : null;
+    } catch { return null; }
   });
 
   const [activeTab, setActiveTab] = useState('dashboard');
   const [data, setData] = useState<AppData>(() => {
-    const saved = localStorage.getItem('sirjan_poosh_data');
-    return saved ? JSON.parse(saved) : INITIAL_DATA;
+    try {
+      const saved = localStorage.getItem('sirjan_poosh_data');
+      if (!saved) return INITIAL_DATA;
+      
+      const parsed = JSON.parse(saved);
+      
+      // Migration Logic: تبدیل داده‌های قدیمی به ساختار جدید
+      if (parsed.partners && Array.isArray(parsed.partners)) {
+        parsed.partners = parsed.partners.map((p: any) => {
+          // اگر شریک investments ندارد ولی investment (قدیمی) دارد
+          if (!p.investments && p.investment !== undefined) {
+            return {
+              ...p,
+              investments: [{ 
+                id: 'migrated-' + Date.now() + Math.random(), 
+                amount: Number(p.investment) || 0, 
+                date: p.date || getCurrentJalaliDate() 
+              }]
+            };
+          }
+          // اطمینان از وجود آرایه
+          if (!p.investments) {
+            return { ...p, investments: [] };
+          }
+          return p;
+        });
+      }
+      
+      return parsed;
+    } catch (e) {
+      console.error("Data Migration Error:", e);
+      return INITIAL_DATA;
+    }
   });
 
   useEffect(() => {
@@ -74,11 +106,11 @@ const App: React.FC = () => {
 
   const canAccess = (tabId: string) => {
     if (currentUser.role === 'admin') return true;
-    return currentUser.permissions.includes(tabId);
+    return currentUser.permissions?.includes(tabId) ?? false;
   };
 
   return (
-    <div className="flex min-h-screen bg-[#f8fafc] text-gray-800 font-medium">
+    <div className="flex min-h-screen bg-[#f8fafc] text-gray-800 font-medium overflow-x-hidden">
       {/* Sidebar - Desktop Only */}
       <aside className="hidden lg:flex flex-col w-72 bg-indigo-950 text-white fixed h-full shadow-2xl z-40">
         <Sidebar 
@@ -101,7 +133,7 @@ const App: React.FC = () => {
         </header>
 
         {/* Content Area */}
-        <main className="p-4 md:p-8 lg:p-10 flex-1 pb-24 lg:pb-10">
+        <main className="p-4 md:p-8 lg:p-10 flex-1 pb-24 lg:pb-10 overflow-x-hidden">
           {/* Top Bar - Desktop Only */}
           <div className="hidden lg:flex justify-between items-center mb-10 bg-white p-6 rounded-[2.5rem] shadow-sm border border-gray-100">
             <div className="flex items-center gap-4">

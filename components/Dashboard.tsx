@@ -9,11 +9,14 @@ interface DashboardProps {
 }
 
 const Dashboard: React.FC<DashboardProps> = ({ data }) => {
-  const totalInventoryValue = data.products.reduce((acc, p) => acc + (p.sellPrice * p.quantity), 0);
-  // Fixed: Sum up all investments for each partner to get total investment
-  const totalInvestment = data.partners.reduce((acc, p) => acc + p.investments.reduce((sum, inv) => sum + inv.amount, 0), 0);
-  const totalInvoices = data.invoices.length;
-  const totalRevenue = data.invoices.reduce((acc, i) => acc + i.totalAmount, 0);
+  const totalInventoryValue = data.products?.reduce((acc, p) => acc + (p.sellPrice * p.quantity), 0) || 0;
+  
+  // Safety sum for investments
+  const totalInvestment = data.partners?.reduce((acc, p) => 
+    acc + (p.investments?.reduce((sum, inv) => sum + (inv.amount || 0), 0) || 0), 0) || 0;
+    
+  const totalInvoices = data.invoices?.length || 0;
+  const totalRevenue = data.invoices?.reduce((acc, i) => acc + (i.totalAmount || 0), 0) || 0;
 
   const chartData = [
     { name: 'ارزش انبار', value: totalInventoryValue },
@@ -44,7 +47,6 @@ const Dashboard: React.FC<DashboardProps> = ({ data }) => {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Main Chart */}
         <div className="lg:col-span-2 bg-white p-8 rounded-[3rem] shadow-sm border border-gray-100">
           <div className="flex justify-between items-center mb-10">
             <h3 className="text-lg font-black text-gray-800">تحلیل وضعیت مالی</h3>
@@ -80,13 +82,11 @@ const Dashboard: React.FC<DashboardProps> = ({ data }) => {
           </div>
         </div>
 
-        {/* Partners Shares */}
         <div className="bg-white p-8 rounded-[3rem] shadow-sm border border-gray-100">
           <h3 className="text-lg font-black text-gray-800 mb-8">سهم مشارکت</h3>
           <div className="space-y-8">
-            {data.partners.map(partner => {
-              // Fixed: Calculate current total investment for the partner
-              const partnerTotal = partner.investments.reduce((sum, inv) => sum + inv.amount, 0);
+            {data.partners?.map(partner => {
+              const partnerTotal = partner.investments?.reduce((sum, inv) => sum + (inv.amount || 0), 0) || 0;
               const share = totalInvestment > 0 ? (partnerTotal / totalInvestment) * 100 : 0;
               return (
                 <div key={partner.id} className="group">
@@ -102,7 +102,6 @@ const Dashboard: React.FC<DashboardProps> = ({ data }) => {
                        <div className="absolute top-0 right-0 h-full w-2 bg-white/20 rounded-full"></div>
                     </div>
                   </div>
-                  {/* Fixed: Display sum of partner's investments */}
                   <p className="text-[10px] text-gray-400 font-bold mt-2 mr-1">{formatCurrency(partnerTotal)}</p>
                 </div>
               );
@@ -111,7 +110,6 @@ const Dashboard: React.FC<DashboardProps> = ({ data }) => {
         </div>
       </div>
       
-      {/* Latest Invoices Table */}
       <div className="bg-white p-8 rounded-[3rem] shadow-sm border border-gray-100 overflow-hidden">
         <h3 className="text-lg font-black text-gray-800 mb-6">آخرین تراکنش‌ها</h3>
         <div className="overflow-x-auto">
@@ -125,7 +123,7 @@ const Dashboard: React.FC<DashboardProps> = ({ data }) => {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
-              {data.invoices.slice(-5).reverse().map(inv => (
+              {data.invoices?.slice(-5).reverse().map(inv => (
                 <tr key={inv.id} className="hover:bg-gray-50 transition-all duration-300 group">
                   <td className="py-5 px-4 font-black text-gray-800">{inv.customerName}</td>
                   <td className="py-5 px-4 text-center text-xs text-gray-400 font-bold">{toPersianNumbers(inv.date)}</td>
