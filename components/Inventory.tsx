@@ -41,6 +41,18 @@ const Inventory: React.FC<InventoryProps> = ({ data, setData, currentUser }) => 
 
   const saveProduct = (e: React.FormEvent) => {
     e.preventDefault();
+
+    // بررسی تکراری بودن کد کالا
+    const existingProduct = data.products.find(p => 
+      p.code.trim() === formData.code.trim() && 
+      (!editingProduct || p.id !== editingProduct.id)
+    );
+
+    if (existingProduct) {
+      const confirmSave = confirm(`هشدار: کد کالای "${toPersianNumbers(formData.code)}" قبلاً برای کالا "${existingProduct.name}" ثبت شده است. آیا همچنان مایل به ثبت کالا با کد تکراری هستید؟`);
+      if (!confirmSave) return;
+    }
+
     const finalPrice = calculateFinalPrice();
     
     const newProduct: Product = {
