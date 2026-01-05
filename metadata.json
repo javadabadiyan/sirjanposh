@@ -1,0 +1,5 @@
+{
+  "name": "Sirjan Poosh Management System",
+  "description": "A comprehensive React-based management system for Sirjan Poosh clothing store, featuring partner profit calculations, inventory management, invoice issuance, and advanced reporting with a beautiful Persian UI.",
+  "requestFramePermissions": []
+}
