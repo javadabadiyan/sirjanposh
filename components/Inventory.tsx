@@ -24,14 +24,12 @@ const Inventory: React.FC<InventoryProps> = ({ data, setData, currentUser }) => 
     date: getCurrentJalaliDate()
   });
 
-  // محاسبه قیمت تمام شده: خرید + کرایه
   const calculateTotalCost = () => {
     const buyPrice = parseRawNumber(formData.buyPrice);
     const shipping = parseRawNumber(formData.shippingCost);
     return buyPrice + shipping;
   };
 
-  // محاسبه قیمت نهایی فروش: (خرید + کرایه) * (1 + درصد سود/100)
   const calculateFinalPrice = () => {
     const totalCost = calculateTotalCost();
     const margin = parseRawNumber(formData.marginPercent);
@@ -42,7 +40,6 @@ const Inventory: React.FC<InventoryProps> = ({ data, setData, currentUser }) => 
   const saveProduct = (e: React.FormEvent) => {
     e.preventDefault();
 
-    // بررسی تکراری بودن کد کالا
     const existingProduct = data.products.find(p => 
       p.code.trim() === formData.code.trim() && 
       (!editingProduct || p.id !== editingProduct.id)
@@ -80,7 +77,6 @@ const Inventory: React.FC<InventoryProps> = ({ data, setData, currentUser }) => 
   };
 
   const handleNumericChange = (field: string, value: string) => {
-    // تبدیل اعداد فارسی به انگلیسی و حذف کاراکترهای غیر عددی (به جز کاما که در نمایش هست)
     const cleanValue = toEnglishDigits(value).replace(/[^0-9]/g, '');
     setFormData({ ...formData, [field]: cleanValue });
   };
@@ -113,7 +109,6 @@ const Inventory: React.FC<InventoryProps> = ({ data, setData, currentUser }) => 
 
   return (
     <div className="space-y-6 animate-fadeIn">
-      {/* Header & Controls */}
       <div className="flex flex-col md:flex-row justify-between items-center gap-4 bg-white p-6 rounded-[2.5rem] shadow-sm border border-gray-100">
         <div className="relative w-full md:w-96">
           <input 
@@ -138,7 +133,6 @@ const Inventory: React.FC<InventoryProps> = ({ data, setData, currentUser }) => 
         </div>
       </div>
 
-      {/* Inventory Table */}
       <div className="bg-white rounded-[2.5rem] shadow-sm overflow-hidden border border-gray-100">
         <div className="overflow-x-auto">
           <table className="w-full text-right">
@@ -185,28 +179,31 @@ const Inventory: React.FC<InventoryProps> = ({ data, setData, currentUser }) => 
                   </td>
                 </tr>
               ))}
-              {filtered.length === 0 && (
-                <tr><td colSpan={7} className="py-24 text-center text-gray-400 font-black text-xl">هیچ کالایی در لیست انبار موجود نیست</td></tr>
-              )}
             </tbody>
           </table>
         </div>
       </div>
 
-      {/* Registration Modal */}
       {showModal && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-md flex items-center justify-center p-4 z-[200]">
-          <div className="bg-white rounded-[3rem] w-full max-w-2xl shadow-2xl overflow-hidden animate-fadeIn border-4 border-white">
-            <div className="p-8 bg-indigo-950 text-white flex justify-between items-center">
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-md flex items-start justify-center p-2 md:p-8 z-[200] overflow-y-auto pt-10">
+          <div className="bg-white rounded-[2.5rem] w-full max-w-2xl shadow-2xl overflow-hidden animate-fadeIn border-4 border-white mb-10">
+            <div className="p-6 md:p-8 bg-indigo-950 text-white flex justify-between items-center sticky top-0 z-10">
               <div>
-                <h3 className="text-2xl font-black">{editingProduct ? 'ویرایش کالا' : 'ثبت کالای جدید'}</h3>
-                <p className="text-xs text-indigo-300 mt-1">اطلاعات فنی و قیمت‌گذاری محصول را دقیق وارد کنید</p>
+                <h3 className="text-xl md:text-2xl font-black">{editingProduct ? 'ویرایش کالا' : 'ثبت کالای جدید'}</h3>
+                <p className="text-[10px] md:text-xs text-indigo-300 mt-1">اطلاعات فنی و قیمت‌گذاری محصول را دقیق وارد کنید</p>
               </div>
-              <button onClick={() => setShowModal(false)} className="text-4xl hover:rotate-90 transition text-indigo-300">&times;</button>
+              <button 
+                type="button"
+                onClick={() => setShowModal(false)} 
+                className="w-12 h-12 flex items-center justify-center bg-white/10 hover:bg-white/20 rounded-2xl text-3xl transition-all"
+                title="بستن"
+              >
+                &times;
+              </button>
             </div>
             
-            <form onSubmit={saveProduct} className="p-10 space-y-8">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <form onSubmit={saveProduct} className="p-6 md:p-10 space-y-6 md:space-y-8">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
                 <div className="space-y-2">
                   <label className="text-sm font-black text-gray-600 mr-2">کد اختصاصی کالا</label>
                   <input required placeholder="مثلاً: SP-102" className="w-full p-4 border-2 border-gray-100 rounded-[1.5rem] outline-none focus:border-indigo-500 font-bold bg-gray-50 transition-all" value={formData.code} onChange={e => setFormData({...formData, code: e.target.value})} />
@@ -217,7 +214,7 @@ const Inventory: React.FC<InventoryProps> = ({ data, setData, currentUser }) => 
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
                 <div className="space-y-2">
                   <label className="text-sm font-black text-gray-600 mr-2">تاریخ ثبت (شمسی)</label>
                   <input required placeholder="مثلاً: ۱۴۰۴/۰۱/۲۰" className="w-full p-4 border-2 border-gray-100 rounded-[1.5rem] outline-none focus:border-indigo-500 font-bold bg-gray-50 transition-all text-center" value={formData.date} onChange={e => setFormData({...formData, date: e.target.value})} />
@@ -228,7 +225,7 @@ const Inventory: React.FC<InventoryProps> = ({ data, setData, currentUser }) => 
                 </div>
               </div>
 
-              <div className="bg-indigo-50 p-8 rounded-[2rem] border-2 border-dashed border-indigo-200 space-y-6">
+              <div className="bg-indigo-50 p-6 md:p-8 rounded-[2rem] border-2 border-dashed border-indigo-200 space-y-6">
                 <h4 className="font-black text-indigo-900 text-center mb-2">محاسبه قیمت تمام شده و سود فروش</h4>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="space-y-2">
@@ -265,15 +262,28 @@ const Inventory: React.FC<InventoryProps> = ({ data, setData, currentUser }) => 
                 </div>
                 
                 <div className="flex flex-col md:flex-row items-center justify-between gap-4 pt-6 border-t border-indigo-200">
-                  <div className="text-center md:text-right bg-white/60 p-4 rounded-2xl border border-white">
+                  <div className="text-center md:text-right bg-white/60 p-4 rounded-2xl border border-white w-full md:w-auto">
                     <p className="text-xs font-black text-gray-400">قیمت تمام شده (خرید + کرایه):</p>
                     <p className="font-black text-xl text-gray-700">{formatCurrency(calculateTotalCost())}</p>
                   </div>
-                  <div className="text-center md:text-left bg-indigo-600 p-6 rounded-[1.5rem] shadow-xl shadow-indigo-200">
+                  <div className="text-center md:text-left bg-indigo-600 p-6 rounded-[1.5rem] shadow-xl shadow-indigo-200 w-full md:w-auto">
                     <p className="text-[10px] font-black text-indigo-100 uppercase tracking-widest mb-1">قیمت نهایی فروش (با احتساب سود):</p>
-                    <p className="text-4xl font-black text-white">{formatCurrency(calculateFinalPrice())}</p>
+                    <p className="text-2xl md:text-4xl font-black text-white">{formatCurrency(calculateFinalPrice())}</p>
                   </div>
                 </div>
+              </div>
+
+              <div className="flex flex-col md:flex-row items-center gap-4">
+                <button type="submit" className="w-full md:flex-[2] bg-indigo-600 text-white py-5 rounded-[1.5rem] font-black text-xl hover:bg-indigo-700 shadow-2xl shadow-indigo-200 transition-all active:scale-95">
+                  {editingProduct ? 'بروزرسانی کالا' : 'تایید و ثبت کالا در انبار'}
+                </button>
+                <button 
+                  type="button" 
+                  onClick={() => setShowModal(false)}
+                  className="w-full md:flex-1 bg-gray-100 text-gray-500 py-5 rounded-[1.5rem] font-black text-xl hover:bg-gray-200 transition-all active:scale-95"
+                >
+                  انصراف
+                </button>
               </div>
 
               <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100 flex items-center gap-3">
@@ -283,10 +293,6 @@ const Inventory: React.FC<InventoryProps> = ({ data, setData, currentUser }) => 
                     <p className="text-sm font-black text-indigo-900">{editingProduct ? editingProduct.registeredBy : currentUser.username}</p>
                  </div>
               </div>
-              
-              <button type="submit" className="w-full bg-indigo-600 text-white py-6 rounded-[1.5rem] font-black text-2xl hover:bg-indigo-700 shadow-2xl shadow-indigo-200 transition-all active:scale-95">
-                {editingProduct ? 'بروزرسانی کالا' : 'تایید و ثبت کالا در انبار'}
-              </button>
             </form>
           </div>
         </div>
