@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { toPersianNumbers } from '../utils/formatters';
+import { toEnglishDigits } from '../utils/formatters';
 import { User } from '../types';
 
 interface LoginProps {
@@ -15,8 +15,15 @@ const Login: React.FC<LoginProps> = ({ onLogin, users }) => {
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    if (username === 'admin' && password === '5221157') {
-      const adminUser = users.find(u => u.username === 'admin') || {
+    
+    // نرمال‌سازی ورودی‌ها (حذف فاصله‌ها و تبدیل اعداد فارسی به انگلیسی)
+    const cleanUsername = toEnglishDigits(username).trim();
+    const cleanPassword = toEnglishDigits(password).trim();
+
+    // بررسی ادمین با رمز عبور مشخص شده توسط کاربر
+    if (cleanUsername === 'admin' && cleanPassword === '5221157') {
+      const adminInDb = users.find(u => u.username === 'admin');
+      const adminUser: User = adminInDb || {
         id: '1',
         username: 'admin',
         role: 'admin' as const,
@@ -25,7 +32,13 @@ const Login: React.FC<LoginProps> = ({ onLogin, users }) => {
       onLogin(adminUser);
       return;
     }
-    const user = users.find(u => u.username === username && u.password === password);
+
+    // بررسی سایر کاربران با نرمال‌سازی داده‌های ذخیره شده
+    const user = users.find(u => 
+      toEnglishDigits(u.username).trim() === cleanUsername && 
+      toEnglishDigits(u.password || '').trim() === cleanPassword
+    );
+
     if (user) {
       onLogin(user);
     } else {
@@ -34,37 +47,38 @@ const Login: React.FC<LoginProps> = ({ onLogin, users }) => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#0f172a] p-4 md:p-8 overflow-hidden relative">
-      {/* Background Decor */}
+    <div className="min-h-screen flex items-center justify-center bg-[#0f172a] p-4 md:p-8 overflow-hidden relative text-right" dir="rtl">
       <div className="absolute top-[-10%] right-[-10%] w-[40%] h-[40%] bg-indigo-600/20 blur-[120px] rounded-full"></div>
       <div className="absolute bottom-[-10%] left-[-10%] w-[40%] h-[40%] bg-blue-600/20 blur-[120px] rounded-full"></div>
 
       <div className="bg-white/95 backdrop-blur-xl p-8 md:p-12 rounded-[3rem] shadow-2xl w-full max-w-md border border-white/20 animate-fadeIn relative z-10">
         <div className="text-center mb-10">
-          <div className="bg-indigo-600 w-20 h-20 rounded-[2rem] flex items-center justify-center mx-auto mb-6 text-4xl shadow-2xl shadow-indigo-200">👕</div>
+          <div className="bg-indigo-600 w-20 h-20 rounded-[2rem] flex items-center justify-center mx-auto mb-6 text-4xl shadow-2xl shadow-indigo-200 text-white">👕</div>
           <h1 className="text-3xl font-black text-slate-900 mb-2">سیرجان پوش</h1>
-          <p className="text-slate-400 font-bold text-sm tracking-wide">Premium Management Portal</p>
+          <p className="text-slate-400 font-bold text-sm tracking-wide">پنل مدیریت هوشمند</p>
         </div>
 
         <form onSubmit={handleLogin} className="space-y-6">
           <div className="space-y-2">
-            <label className="block text-xs font-black text-slate-500 mr-2 uppercase tracking-widest">نام کاربری</label>
+            <label className="block text-xs font-black text-slate-500 mr-2 uppercase tracking-widest text-right">نام کاربری</label>
             <input 
               type="text" 
-              className="w-full p-5 border-2 border-slate-100 rounded-2xl bg-slate-50 focus:border-indigo-600 focus:bg-white outline-none transition-all text-lg font-bold"
+              className="w-full p-5 border-2 border-slate-100 rounded-2xl bg-slate-50 focus:border-indigo-600 focus:bg-white outline-none transition-all text-lg font-bold text-center"
               placeholder="Username"
               value={username}
               onChange={e => setUsername(e.target.value)}
+              required
             />
           </div>
           <div className="space-y-2">
-            <label className="block text-xs font-black text-slate-500 mr-2 uppercase tracking-widest">رمز عبور</label>
+            <label className="block text-xs font-black text-slate-500 mr-2 uppercase tracking-widest text-right">رمز عبور</label>
             <input 
               type="password" 
-              className="w-full p-5 border-2 border-slate-100 rounded-2xl bg-slate-50 focus:border-indigo-600 focus:bg-white outline-none transition-all text-lg font-bold"
+              className="w-full p-5 border-2 border-slate-100 rounded-2xl bg-slate-50 focus:border-indigo-600 focus:bg-white outline-none transition-all text-lg font-bold text-center"
               placeholder="••••••••"
               value={password}
               onChange={e => setPassword(e.target.value)}
+              required
             />
           </div>
 
