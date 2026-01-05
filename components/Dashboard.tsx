@@ -10,7 +10,8 @@ interface DashboardProps {
 
 const Dashboard: React.FC<DashboardProps> = ({ data }) => {
   const totalInventoryValue = data.products.reduce((acc, p) => acc + (p.sellPrice * p.quantity), 0);
-  const totalInvestment = data.partners.reduce((acc, p) => acc + p.investment, 0);
+  // Fixed: Sum up all investments for each partner to get total investment
+  const totalInvestment = data.partners.reduce((acc, p) => acc + p.investments.reduce((sum, inv) => sum + inv.amount, 0), 0);
   const totalInvoices = data.invoices.length;
   const totalRevenue = data.invoices.reduce((acc, i) => acc + i.totalAmount, 0);
 
@@ -84,7 +85,9 @@ const Dashboard: React.FC<DashboardProps> = ({ data }) => {
           <h3 className="text-lg font-black text-gray-800 mb-8">سهم مشارکت</h3>
           <div className="space-y-8">
             {data.partners.map(partner => {
-              const share = totalInvestment > 0 ? (partner.investment / totalInvestment) * 100 : 0;
+              // Fixed: Calculate current total investment for the partner
+              const partnerTotal = partner.investments.reduce((sum, inv) => sum + inv.amount, 0);
+              const share = totalInvestment > 0 ? (partnerTotal / totalInvestment) * 100 : 0;
               return (
                 <div key={partner.id} className="group">
                   <div className="flex justify-between mb-3">
@@ -99,7 +102,8 @@ const Dashboard: React.FC<DashboardProps> = ({ data }) => {
                        <div className="absolute top-0 right-0 h-full w-2 bg-white/20 rounded-full"></div>
                     </div>
                   </div>
-                  <p className="text-[10px] text-gray-400 font-bold mt-2 mr-1">{formatCurrency(partner.investment)}</p>
+                  {/* Fixed: Display sum of partner's investments */}
+                  <p className="text-[10px] text-gray-400 font-bold mt-2 mr-1">{formatCurrency(partnerTotal)}</p>
                 </div>
               );
             })}

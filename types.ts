@@ -9,14 +9,20 @@ export interface Product {
   sellPrice: number;
   quantity: number;
   date: string;
-  registeredBy: string; // فیلد جدید برای ذخیره نام کاربر ثبت‌کننده
+  registeredBy: string;
+}
+
+export interface InvestmentRecord {
+  id: string;
+  amount: number;
+  date: string;
 }
 
 export interface Partner {
   id: string;
   name: string;
-  investment: number;
-  date: string;
+  investments: InvestmentRecord[]; // لیستی از واریزی‌ها به جای یک مبلغ واحد
+  date: string; // تاریخ ثبت اولیه شریک
 }
 
 export interface PaymentHistory {
@@ -48,7 +54,7 @@ export interface User {
   username: string;
   password?: string;
   role: 'admin' | 'staff';
-  permissions: string[]; // List of tab IDs the user can access
+  permissions: string[];
 }
 
 export interface AppData {

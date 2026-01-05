@@ -13,9 +13,20 @@ import { getCurrentJalaliDate } from './utils/formatters';
 
 const INITIAL_DATA: AppData = {
   products: [],
+  // Fixed: Updated partner objects to use investments array instead of investment property
   partners: [
-    { id: '1', name: 'شریک اول', investment: 10000000, date: '1403/01/01' },
-    { id: '2', name: 'شریک دوم', investment: 30000000, date: '1403/01/01' }
+    { 
+      id: '1', 
+      name: 'شریک اول', 
+      investments: [{ id: 'init-1', amount: 10000000, date: '1403/01/01' }], 
+      date: '1403/01/01' 
+    },
+    { 
+      id: '2', 
+      name: 'شریک دوم', 
+      investments: [{ id: 'init-2', amount: 30000000, date: '1403/01/01' }], 
+      date: '1403/01/01' 
+    }
   ],
   payments: [],
   invoices: [],

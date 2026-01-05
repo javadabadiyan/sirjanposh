@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { AppData, Partner, PaymentHistory } from '../types';
+import { AppData, Partner, PaymentHistory, InvestmentRecord } from '../types';
 import { formatCurrency, toPersianNumbers, getCurrentJalaliDate, parseRawNumber, toEnglishDigits, formatWithCommas } from '../utils/formatters';
 
 interface PartnersProps {
@@ -10,27 +10,28 @@ interface PartnersProps {
 
 const Partners: React.FC<PartnersProps> = ({ data, setData }) => {
   const [monthlyProfit, setMonthlyProfit] = useState<string>('');
-  const [selectedPeriod, setSelectedPeriod] = useState(getCurrentJalaliDate().substring(0, 7)); // پیش‌فرض ماه جاری: ۱۴۰۴/۱۰
+  const [selectedPeriod, setSelectedPeriod] = useState(getCurrentJalaliDate().substring(0, 7));
   const [searchTerm, setSearchTerm] = useState('');
   const [isAutoCalculating, setIsAutoCalculating] = useState(true);
   
   // Partner Modal State
   const [showPartnerModal, setShowPartnerModal] = useState(false);
   const [editingPartner, setEditingPartner] = useState<Partner | null>(null);
-  const [partnerForm, setPartnerForm] = useState({ name: '', investment: '' });
+  const [partnerForm, setPartnerForm] = useState({ name: '', initialAmount: '', initialDate: getCurrentJalaliDate() });
 
-  // Payment Modal State
-  const [showPaymentModal, setShowPaymentModal] = useState(false);
-  const [editingPayment, setEditingPayment] = useState<PaymentHistory | null>(null);
-  const [paymentForm, setPaymentForm] = useState({ amount: '', period: '', description: '' });
+  // Add Investment Modal State
+  const [showInvestmentModal, setShowInvestmentModal] = useState<Partner | null>(null);
+  const [invForm, setInvForm] = useState({ amount: '', date: getCurrentJalaliDate() });
 
-  const totalInvestment = data.partners.reduce((acc, p) => acc + p.investment, 0);
+  const getPartnerTotalInvestment = (partner: Partner) => {
+    return partner.investments.reduce((sum, inv) => sum + inv.amount, 0);
+  };
 
-  // محاسبه خودکار سود از فاکتورها
+  const totalInvestment = data.partners.reduce((acc, p) => acc + getPartnerTotalInvestment(p), 0);
+
   useEffect(() => {
     if (isAutoCalculating) {
       let totalProfit = 0;
-      // فاکتورهایی که تاریخشان با دوره انتخاب شده شروع می‌شود
       const periodInvoices = data.invoices.filter(inv => inv.date.startsWith(selectedPeriod));
       
       periodInvoices.forEach(inv => {
@@ -48,16 +49,16 @@ const Partners: React.FC<PartnersProps> = ({ data, setData }) => {
     }
   }, [selectedPeriod, data.invoices, data.products, isAutoCalculating]);
 
-  const calculateShare = (investment: number) => {
+  const calculateShare = (partnerInvestment: number) => {
     if (totalInvestment === 0) return 0;
     const profit = parseRawNumber(monthlyProfit);
-    return (investment / totalInvestment) * profit;
+    return (partnerInvestment / totalInvestment) * profit;
   };
 
   const handleNumericChange = (setter: (val: string) => void, value: string) => {
     const cleanValue = toEnglishDigits(value).replace(/[^0-9]/g, '');
     setter(cleanValue);
-    if (setter === setMonthlyProfit) setIsAutoCalculating(false); // اگر کاربر دستی تغییر داد، محاسبه خودکار غیرفعال شود
+    if (setter === setMonthlyProfit) setIsAutoCalculating(false);
   };
 
   const savePartner = (e: React.FormEvent) => {
@@ -65,8 +66,12 @@ const Partners: React.FC<PartnersProps> = ({ data, setData }) => {
     const newPartner: Partner = {
       id: editingPartner ? editingPartner.id : Date.now().toString(),
       name: partnerForm.name,
-      investment: parseRawNumber(partnerForm.investment),
-      date: editingPartner ? editingPartner.date : getCurrentJalaliDate()
+      investments: editingPartner ? editingPartner.investments : [{
+        id: Date.now().toString(),
+        amount: parseRawNumber(partnerForm.initialAmount),
+        date: partnerForm.initialDate
+      }],
+      date: editingPartner ? editingPartner.date : partnerForm.initialDate
     };
 
     if (editingPartner) {
@@ -76,13 +81,50 @@ const Partners: React.FC<PartnersProps> = ({ data, setData }) => {
     }
     setShowPartnerModal(false);
     setEditingPartner(null);
-    setPartnerForm({ name: '', investment: '' });
+    setPartnerForm({ name: '', initialAmount: '', initialDate: getCurrentJalaliDate() });
   };
 
-  // Fix: Added missing deletePartner function to resolve the error on line 150
+  const addInvestment = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!showInvestmentModal) return;
+
+    const newRecord: InvestmentRecord = {
+      id: Date.now().toString(),
+      amount: parseRawNumber(invForm.amount),
+      date: invForm.date
+    };
+
+    const updatedPartners = data.partners.map(p => {
+      if (p.id === showInvestmentModal.id) {
+        return { ...p, investments: [...p.investments, newRecord] };
+      }
+      return p;
+    });
+
+    setData({ ...data, partners: updatedPartners });
+    setShowInvestmentModal(null);
+    setInvForm({ amount: '', date: getCurrentJalaliDate() });
+  };
+
   const deletePartner = (id: string) => {
-    if (confirm('آیا از حذف این شریک اطمینان دارید؟')) {
+    if (confirm('آیا از حذف این شریک و تمامی سوابق سرمایه او اطمینان دارید؟')) {
       setData({ ...data, partners: data.partners.filter(p => p.id !== id) });
+    }
+  };
+
+  const removeInvestment = (partnerId: string, invId: string) => {
+    if (confirm('آیا از حذف این واریزی اطمینان دارید؟')) {
+      const updatedPartners = data.partners.map(p => {
+        if (p.id === partnerId) {
+          if (p.investments.length <= 1) {
+            alert('حداقل یک واریزی برای شریک باید باقی بماند.');
+            return p;
+          }
+          return { ...p, investments: p.investments.filter(i => i.id !== invId) };
+        }
+        return p;
+      });
+      setData({ ...data, partners: updatedPartners });
     }
   };
 
@@ -96,7 +138,7 @@ const Partners: React.FC<PartnersProps> = ({ data, setData }) => {
     const newPayments: PaymentHistory[] = data.partners.map(p => ({
       id: Date.now().toString() + p.id,
       partnerId: p.id,
-      amount: calculateShare(p.investment),
+      amount: calculateShare(getPartnerTotalInvestment(p)),
       period: selectedPeriod,
       date: getCurrentJalaliDate(),
       description: `پرداخت سود دوره ${selectedPeriod}`
@@ -121,40 +163,76 @@ const Partners: React.FC<PartnersProps> = ({ data, setData }) => {
     <div className="space-y-8 animate-fadeIn pb-24 lg:pb-10">
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* Partners Section */}
-        <div className="bg-white p-6 md:p-8 rounded-[2.5rem] shadow-sm border border-gray-100">
+        <div className="bg-white p-6 md:p-8 rounded-[2.5rem] shadow-sm border border-gray-100 flex flex-col h-full">
           <div className="flex justify-between items-center mb-8">
             <h3 className="text-lg md:text-xl font-black text-gray-800 flex items-center gap-3">
-              <span className="bg-indigo-100 p-3 rounded-2xl text-xl">🤝</span> لیست شرکا
+              <span className="bg-indigo-100 p-3 rounded-2xl text-xl">🤝</span> لیست شرکا و سرمایه
             </h3>
             <button 
-              onClick={() => { setEditingPartner(null); setPartnerForm({ name: '', investment: '' }); setShowPartnerModal(true); }}
+              onClick={() => { setEditingPartner(null); setPartnerForm({ name: '', initialAmount: '', initialDate: getCurrentJalaliDate() }); setShowPartnerModal(true); }}
               className="bg-indigo-600 text-white px-5 py-3 rounded-xl font-bold hover:bg-indigo-700 transition text-sm shadow-lg shadow-indigo-100"
             >
-              + افزودن شریک
+              + شریک جدید
             </button>
           </div>
           
-          <div className="space-y-4">
+          <div className="space-y-6 overflow-y-auto flex-1 max-h-[600px] custom-scrollbar pr-2">
             {data.partners.map(p => {
-              const sharePercent = totalInvestment > 0 ? ((p.investment/totalInvestment)*100).toFixed(1) : "0";
+              const currentTotal = getPartnerTotalInvestment(p);
+              const sharePercent = totalInvestment > 0 ? ((currentTotal / totalInvestment) * 100).toFixed(1) : "0";
               return (
-                <div key={p.id} className="p-5 border border-gray-100 rounded-3xl bg-gray-50 hover:bg-white hover:shadow-xl transition-all group">
-                  <div className="flex justify-between items-start mb-3">
+                <div key={p.id} className="p-6 border border-gray-100 rounded-[2rem] bg-gray-50 hover:bg-white hover:shadow-xl transition-all group border-r-8 border-r-indigo-500">
+                  <div className="flex justify-between items-start mb-4">
                     <div>
-                      <span className="font-black text-lg text-indigo-900">{p.name}</span>
-                      <p className="text-[10px] text-gray-400 font-bold mt-1">تاریخ ورود: {toPersianNumbers(p.date)}</p>
+                      <span className="font-black text-xl text-indigo-900">{p.name}</span>
+                      <p className="text-[10px] text-gray-400 font-bold mt-1 uppercase tracking-tighter">ثبت اولیه: {toPersianNumbers(p.date)}</p>
                     </div>
-                    <span className="bg-indigo-600 text-white px-3 py-1 rounded-xl text-[10px] font-black">
-                      {toPersianNumbers(sharePercent)}٪ سهم
-                    </span>
+                    <div className="text-left">
+                      <span className="bg-indigo-600 text-white px-4 py-1.5 rounded-xl text-xs font-black">
+                        {toPersianNumbers(sharePercent)}٪ سهم کل
+                      </span>
+                    </div>
                   </div>
-                  <div className="flex justify-between items-center text-sm">
-                    <span className="text-gray-500 font-bold">سرمایه:</span>
-                    <span className="font-black text-indigo-900">{formatCurrency(p.investment)}</span>
+
+                  <div className="space-y-3 mb-6 bg-white p-4 rounded-2xl border border-gray-100">
+                    <p className="text-[10px] font-black text-gray-400 mb-2 border-b pb-1">تاریخچه واریزی‌ها:</p>
+                    {p.investments.map((inv, idx) => (
+                      <div key={inv.id} className="flex justify-between items-center text-xs group/inv">
+                        <div className="flex items-center gap-2">
+                          <span className="w-5 h-5 bg-indigo-50 text-indigo-400 rounded-full flex items-center justify-center text-[8px] font-black">{toPersianNumbers(idx+1)}</span>
+                          <span className="text-gray-400 font-bold">{toPersianNumbers(inv.date)}:</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-black text-indigo-900">{formatCurrency(inv.amount)}</span>
+                          <button onClick={() => removeInvestment(p.id, inv.id)} className="text-red-300 hover:text-red-600 opacity-0 group-hover/inv:opacity-100 transition-opacity">×</button>
+                        </div>
+                      </div>
+                    ))}
+                    <div className="pt-2 mt-2 border-t flex justify-between items-center">
+                      <span className="text-xs font-black text-gray-500">مجموع سرمایه فعلی:</span>
+                      <span className="font-black text-indigo-950 text-lg">{formatCurrency(currentTotal)}</span>
+                    </div>
                   </div>
-                  <div className="pt-4 mt-3 border-t border-gray-200 flex justify-end gap-3 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button onClick={() => { setEditingPartner(p); setPartnerForm({ name: p.name, investment: p.investment.toString() }); setShowPartnerModal(true); }} className="text-blue-600 font-black text-xs">ویرایش</button>
-                    <button onClick={() => deletePartner(p.id)} className="text-red-500 font-black text-xs">حذف</button>
+
+                  <div className="flex gap-2">
+                    <button 
+                      onClick={() => { setInvForm({amount: '', date: getCurrentJalaliDate()}); setShowInvestmentModal(p); }} 
+                      className="flex-1 bg-green-50 text-green-700 py-3 rounded-xl text-xs font-black hover:bg-green-600 hover:text-white transition shadow-sm"
+                    >
+                      + واریز جدید
+                    </button>
+                    <button 
+                      onClick={() => { setEditingPartner(p); setPartnerForm({ name: p.name, initialAmount: '', initialDate: p.date }); setShowPartnerModal(true); }} 
+                      className="px-4 bg-gray-100 text-gray-500 py-3 rounded-xl text-xs font-black hover:bg-indigo-900 hover:text-white transition"
+                    >
+                      ویرایش نام
+                    </button>
+                    <button 
+                      onClick={() => deletePartner(p.id)} 
+                      className="px-4 bg-red-50 text-red-500 py-3 rounded-xl text-xs font-black hover:bg-red-600 hover:text-white transition"
+                    >
+                      حذف
+                    </button>
                   </div>
                 </div>
               );
@@ -210,7 +288,7 @@ const Partners: React.FC<PartnersProps> = ({ data, setData }) => {
                 {data.partners.map(p => (
                   <div key={p.id} className="flex justify-between items-center py-2 border-b last:border-0 border-indigo-100/50">
                     <span className="text-gray-700 font-bold text-sm">{p.name}:</span>
-                    <span className="font-black text-green-700">{formatCurrency(calculateShare(p.investment))}</span>
+                    <span className="font-black text-green-700">{formatCurrency(calculateShare(getPartnerTotalInvestment(p)))}</span>
                   </div>
                 ))}
               </div>
@@ -252,7 +330,7 @@ const Partners: React.FC<PartnersProps> = ({ data, setData }) => {
                   <td className="p-5 text-center font-bold text-gray-500">{toPersianNumbers(pay.period)}</td>
                   <td className="p-5 font-black text-green-600">{formatCurrency(pay.amount)}</td>
                   <td className="p-5 text-center">
-                    <button onClick={() => deletePayment(pay.id)} className="text-red-400 hover:text-red-600 transition p-2">🗑️ حذف</button>
+                    <button onClick={() => deletePayment(pay.id)} className="text-red-400 hover:text-red-600 transition p-2 font-black text-xs">🗑️ حذف سابقه</button>
                   </td>
                 </tr>
               ))}
@@ -261,24 +339,62 @@ const Partners: React.FC<PartnersProps> = ({ data, setData }) => {
         </div>
       </div>
 
-      {/* Partner Modal (Shared with previous version but styled better) */}
+      {/* Partner Modal */}
       {showPartnerModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-md flex items-center justify-center p-4 z-[200]">
           <div className="bg-white rounded-[2.5rem] w-full max-w-md shadow-2xl overflow-hidden animate-fadeIn">
             <div className="p-6 bg-indigo-950 text-white flex justify-between items-center">
-              <h3 className="text-xl font-black">{editingPartner ? 'ویرایش شریک' : 'افزودن شریک'}</h3>
-              <button onClick={() => setShowPartnerModal(false)} className="text-2xl">&times;</button>
+              <h3 className="text-xl font-black">{editingPartner ? 'ویرایش نام شریک' : 'ثبت شریک جدید'}</h3>
+              <button onClick={() => setShowPartnerModal(false)} className="text-2xl hover:rotate-90 transition">&times;</button>
             </div>
             <form onSubmit={savePartner} className="p-8 space-y-6">
               <div className="space-y-2">
                 <label className="text-xs font-bold text-gray-500 mr-2">نام کامل شریک</label>
                 <input required className="w-full p-4 bg-gray-50 border-2 border-gray-100 rounded-2xl outline-none focus:border-indigo-500 font-bold" value={partnerForm.name} onChange={e => setPartnerForm({...partnerForm, name: e.target.value})} />
               </div>
-              <div className="space-y-2">
-                <label className="text-xs font-bold text-gray-500 mr-2">سرمایه اولیه (تومان)</label>
-                <input required type="text" className="w-full p-4 bg-gray-50 border-2 border-gray-100 rounded-2xl outline-none focus:border-indigo-500 font-black text-xl text-indigo-700" value={toPersianNumbers(formatWithCommas(partnerForm.investment))} onChange={e => handleNumericChange((v) => setPartnerForm({...partnerForm, investment: v}), e.target.value)} />
+              {!editingPartner && (
+                <>
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-gray-500 mr-2">مبلغ اولین سرمایه‌گذاری (تومان)</label>
+                    <input required type="text" className="w-full p-4 bg-gray-50 border-2 border-gray-100 rounded-2xl outline-none focus:border-indigo-500 font-black text-xl text-indigo-700" value={toPersianNumbers(formatWithCommas(partnerForm.initialAmount))} onChange={e => handleNumericChange((v) => setPartnerForm({...partnerForm, initialAmount: v}), e.target.value)} />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-gray-500 mr-2">تاریخ ثبت و اولین واریز</label>
+                    <input required className="w-full p-4 bg-gray-50 border-2 border-gray-100 rounded-2xl outline-none focus:border-indigo-500 font-bold text-center" value={partnerForm.initialDate} onChange={e => setPartnerForm({...partnerForm, initialDate: e.target.value})} />
+                  </div>
+                </>
+              )}
+              <button type="submit" className="w-full bg-indigo-600 text-white py-4 rounded-2xl font-black text-lg hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-100">
+                {editingPartner ? 'بروزرسانی نام' : 'تایید و ایجاد پرونده شریک'}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Add Investment Modal */}
+      {showInvestmentModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-md flex items-center justify-center p-4 z-[200]">
+          <div className="bg-white rounded-[2.5rem] w-full max-w-md shadow-2xl overflow-hidden animate-fadeIn border-t-8 border-green-500">
+            <div className="p-6 bg-gray-50 border-b flex justify-between items-center">
+              <div>
+                <h3 className="text-xl font-black text-indigo-950">افزودن سرمایه جدید</h3>
+                <p className="text-[10px] font-bold text-gray-400">برای شریک: {showInvestmentModal.name}</p>
               </div>
-              <button type="submit" className="w-full bg-indigo-600 text-white py-4 rounded-2xl font-black text-lg hover:bg-indigo-700 transition-all">ذخیره اطلاعات</button>
+              <button onClick={() => setShowInvestmentModal(null)} className="text-2xl text-gray-400 hover:text-red-500 transition">&times;</button>
+            </div>
+            <form onSubmit={addInvestment} className="p-8 space-y-6">
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-gray-500 mr-2">مبلغ واریز جدید (تومان)</label>
+                <input required type="text" className="w-full p-5 bg-gray-50 border-2 border-gray-100 rounded-2xl outline-none focus:border-green-500 font-black text-2xl text-green-700 shadow-inner" value={toPersianNumbers(formatWithCommas(invForm.amount))} onChange={e => handleNumericChange((v) => setInvForm({...invForm, amount: v}), e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-gray-500 mr-2">تاریخ واریز</label>
+                <input required className="w-full p-4 bg-gray-50 border-2 border-gray-100 rounded-2xl outline-none focus:border-green-500 font-bold text-center" value={invForm.date} onChange={e => setInvForm({...invForm, date: e.target.value})} />
+              </div>
+              <button type="submit" className="w-full bg-green-600 text-white py-5 rounded-[1.5rem] font-black text-xl hover:bg-green-700 transition-all shadow-xl shadow-green-100 active:scale-95">
+                تایید و ثبت واریزی
+              </button>
             </form>
           </div>
         </div>
