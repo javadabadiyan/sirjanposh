@@ -88,17 +88,21 @@ const Inventory: React.FC<InventoryProps> = ({ data, setData, currentUser }) => 
   };
 
   const exportToExcel = () => {
-    const wsData = data.products.map(p => ({
-      'کد کالا': p.code,
-      'نام کالا': p.name,
-      'قیمت خرید (تومان)': p.buyPrice,
-      'هزینه حمل (تومان)': p.shippingCost,
-      'درصد سود (%)': p.marginPercent,
-      'قیمت فروش نهایی (تومان)': p.sellPrice,
-      'تعداد': p.quantity,
-      'تاریخ ثبت': p.date,
-      'ثبت توسط': p.registeredBy || 'نامشخص'
-    }));
+    const wsData = data.products.map(p => {
+      const unitProfit = p.sellPrice - (p.buyPrice + p.shippingCost);
+      return {
+        'کد کالا': p.code,
+        'نام کالا': p.name,
+        'قیمت خرید (تومان)': p.buyPrice,
+        'هزینه حمل (تومان)': p.shippingCost,
+        'درصد سود (%)': p.marginPercent,
+        'سود خالص هر کالا (تومان)': unitProfit,
+        'قیمت فروش نهایی (تومان)': p.sellPrice,
+        'تعداد': p.quantity,
+        'تاریخ ثبت': p.date,
+        'ثبت توسط': p.registeredBy || 'نامشخص'
+      };
+    });
     const ws = XLSX.utils.json_to_sheet(wsData);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "SirjanPooshInventory");
@@ -135,50 +139,60 @@ const Inventory: React.FC<InventoryProps> = ({ data, setData, currentUser }) => 
 
       <div className="bg-white rounded-[2.5rem] shadow-sm overflow-hidden border border-gray-100">
         <div className="overflow-x-auto">
-          <table className="w-full text-right">
+          <table className="w-full text-right min-w-[1000px] lg:min-w-0">
             <thead>
               <tr className="bg-indigo-900 text-white text-xs md:text-sm">
-                <th className="py-6 px-4 font-black">کد</th>
-                <th className="py-6 px-4 font-black">نام محصول</th>
+                <th className="py-6 px-4 font-black">کد / نام</th>
+                <th className="py-6 px-4 font-black">قیمت خرید</th>
+                <th className="py-6 px-4 font-black">کرایه حمل</th>
+                <th className="py-6 px-4 font-black">سود واحد</th>
                 <th className="py-6 px-4 font-black">قیمت فروش</th>
                 <th className="py-6 px-4 font-black text-center">تعداد</th>
-                <th className="py-6 px-4 font-black text-center">تاریخ</th>
-                <th className="py-6 px-4 font-black text-center">ثبت توسط</th>
                 <th className="py-6 px-4 font-black text-center">عملیات</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {filtered.map(p => (
-                <tr key={p.id} className="hover:bg-indigo-50/30 transition-colors group">
-                  <td className="py-5 px-4 font-black text-indigo-600">{toPersianNumbers(p.code)}</td>
-                  <td className="py-5 px-4 font-bold text-gray-800">{p.name}</td>
-                  <td className="py-5 px-4 font-black text-lg text-indigo-900">{formatCurrency(p.sellPrice)}</td>
-                  <td className="py-5 px-4 text-center">
-                    <span className={`px-4 py-1.5 rounded-full text-[10px] md:text-xs font-black ${p.quantity > 5 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                      {toPersianNumbers(p.quantity)} عدد
-                    </span>
-                  </td>
-                  <td className="py-5 px-4 text-center text-xs text-gray-400 font-bold">{toPersianNumbers(p.date)}</td>
-                  <td className="py-5 px-4 text-center text-xs text-indigo-400 font-black">{p.registeredBy || '---'}</td>
-                  <td className="py-5 px-4 text-center">
-                    <div className="flex justify-center gap-2">
-                      <button 
-                        onClick={() => {
-                          setEditingProduct(p);
-                          setFormData({
-                            code: p.code, name: p.name, buyPrice: p.buyPrice.toString(),
-                            shippingCost: p.shippingCost.toString(), marginPercent: p.marginPercent.toString(),
-                            quantity: p.quantity.toString(), date: p.date
-                          });
-                          setShowModal(true);
-                        }}
-                        className="text-blue-600 font-black hover:bg-blue-50 px-2 py-1 rounded-lg transition text-xs"
-                      >ویرایش</button>
-                      <button onClick={() => deleteProduct(p.id)} className="text-red-500 font-black hover:bg-red-50 px-2 py-1 rounded-lg transition text-xs">حذف</button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
+              {filtered.map(p => {
+                const unitProfit = p.sellPrice - (p.buyPrice + p.shippingCost);
+                return (
+                  <tr key={p.id} className="hover:bg-indigo-50/30 transition-colors group">
+                    <td className="py-5 px-4">
+                      <div className="font-black text-indigo-600 text-xs">{toPersianNumbers(p.code)}</div>
+                      <div className="font-bold text-gray-800 text-sm">{p.name}</div>
+                    </td>
+                    <td className="py-5 px-4 font-bold text-gray-500 text-xs">{formatCurrency(p.buyPrice)}</td>
+                    <td className="py-5 px-4 font-bold text-gray-500 text-xs">{formatCurrency(p.shippingCost)}</td>
+                    <td className="py-5 px-4">
+                      <div className="bg-green-50 text-green-700 px-3 py-1 rounded-xl text-[11px] font-black inline-block border border-green-100">
+                        {formatCurrency(unitProfit)}
+                      </div>
+                    </td>
+                    <td className="py-5 px-4 font-black text-lg text-indigo-950">{formatCurrency(p.sellPrice)}</td>
+                    <td className="py-5 px-4 text-center">
+                      <span className={`px-4 py-1.5 rounded-full text-[10px] md:text-xs font-black ${p.quantity > 5 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                        {toPersianNumbers(p.quantity)} عدد
+                      </span>
+                    </td>
+                    <td className="py-5 px-4 text-center">
+                      <div className="flex justify-center gap-2">
+                        <button 
+                          onClick={() => {
+                            setEditingProduct(p);
+                            setFormData({
+                              code: p.code, name: p.name, buyPrice: p.buyPrice.toString(),
+                              shippingCost: p.shippingCost.toString(), marginPercent: p.marginPercent.toString(),
+                              quantity: p.quantity.toString(), date: p.date
+                            });
+                            setShowModal(true);
+                          }}
+                          className="text-blue-600 font-black hover:bg-blue-50 px-2 py-1 rounded-lg transition text-xs"
+                        >ویرایش</button>
+                        <button onClick={() => deleteProduct(p.id)} className="text-red-500 font-black hover:bg-red-50 px-2 py-1 rounded-lg transition text-xs">حذف</button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
