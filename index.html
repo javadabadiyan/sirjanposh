@@ -8,7 +8,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/Vazirmatn-font-face.css" rel="stylesheet" type="text/css" />
     <style>
-        /* اعمال فونت روی تمام المان‌ها برای اطمینان از فارسی بودن همه جا */
+        /* اعمال فونت روی تمام المان‌ها */
         * {
             font-family: 'Vazirmatn', sans-serif !important;
         }
@@ -16,7 +16,6 @@
             background-color: #f8fafc;
             color: #1e293b;
         }
-        /* استایل سفارشی برای فیلدهای ورودی */
         input, select, textarea, button {
             font-family: 'Vazirmatn', sans-serif !important;
             direction: rtl;
@@ -24,16 +23,32 @@
         ::-webkit-scrollbar { width: 6px; }
         ::-webkit-scrollbar-track { background: #f1f1f1; }
         ::-webkit-scrollbar-thumb { background: #6366f1; border-radius: 10px; }
-        @media print { .no-print { display: none !important; } }
+
+        @media print {
+            .no-print { display: none !important; }
+            body { background-color: white !important; padding: 0 !important; margin: 0 !important; }
+            #root { padding: 0 !important; }
+            @page {
+                size: A4;
+                margin: 10mm;
+            }
+            .invoice-container {
+                border: 1px solid #eee !important;
+                box-shadow: none !important;
+                width: 100% !important;
+                max-width: none !important;
+                margin: 0 !important;
+                padding: 15mm !important;
+                border-radius: 0 !important;
+            }
+        }
         
-        /* انیمیشن‌های ورود */
         @keyframes fadeIn {
             from { opacity: 0; transform: translateY(10px); }
             to { opacity: 1; transform: translateY(0); }
         }
         .animate-fadeIn { animation: fadeIn 0.5s ease-out forwards; }
 
-        /* استایل اختصاصی برای اسکرول‌بار مودال‌ها */
         .custom-scrollbar::-webkit-scrollbar { width: 4px; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
     </style>
