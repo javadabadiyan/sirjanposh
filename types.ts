@@ -47,6 +47,7 @@ export interface User {
   username: string;
   password?: string;
   role: 'admin' | 'staff';
+  permissions: string[]; // List of tab IDs the user can access
 }
 
 export interface AppData {

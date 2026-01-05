@@ -8,15 +8,30 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/Vazirmatn-font-face.css" rel="stylesheet" type="text/css" />
     <style>
+        /* اعمال فونت روی تمام المان‌ها برای اطمینان از فارسی بودن همه جا */
+        * {
+            font-family: 'Vazirmatn', sans-serif !important;
+        }
         body {
-            font-family: 'Vazirmatn', sans-serif;
             background-color: #f8fafc;
+            color: #1e293b;
+        }
+        /* استایل سفارشی برای فیلدهای ورودی */
+        input, select, textarea, button {
+            font-family: 'Vazirmatn', sans-serif !important;
+            direction: rtl;
         }
         ::-webkit-scrollbar { width: 6px; }
         ::-webkit-scrollbar-track { background: #f1f1f1; }
-        ::-webkit-scrollbar-thumb { background: #888; border-radius: 10px; }
-        ::-webkit-scrollbar-thumb:hover { background: #555; }
+        ::-webkit-scrollbar-thumb { background: #6366f1; border-radius: 10px; }
         @media print { .no-print { display: none !important; } }
+        
+        /* انیمیشن‌های ورود */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fadeIn { animation: fadeIn 0.5s ease-out forwards; }
     </style>
 <script type="importmap">
 {
@@ -26,15 +41,14 @@
     "react/": "https://esm.sh/react@^19.2.3/",
     "recharts": "https://esm.sh/recharts@^3.6.0",
     "xlsx": "https://esm.sh/xlsx@^0.18.5",
-    "@vitejs/plugin-react": "https://esm.sh/@vitejs/plugin-react@^5.1.2",
-    "vite": "https://esm.sh/vite@^7.3.0"
+    "vite": "https://esm.sh/vite@^7.3.0",
+    "@vitejs/plugin-react": "https://esm.sh/@vitejs/plugin-react@^5.1.2"
   }
 }
 </script>
 </head>
 <body>
     <div id="root"></div>
-    <!-- اضافه کردن اسکریپت اصلی برای اجرای اپلیکیشن -->
     <script type="module" src="/index.tsx"></script>
 </body>
 </html>

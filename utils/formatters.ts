@@ -6,6 +6,7 @@ export const toPersianNumbers = (str: string | number): string => {
 
 export const formatCurrency = (amount: number): string => {
   const formatted = new Intl.NumberFormat('fa-IR').format(amount);
+  // استفاده از تابع کمکی برای اطمینان از تبدیل تمام ارقام
   return toPersianNumbers(formatted) + ' تومان';
 };
 
@@ -21,5 +22,9 @@ export const getCurrentJalaliDate = (): string => {
   const year = parts.find(p => p.type === 'year')?.value;
   const month = parts.find(p => p.type === 'month')?.value;
   const day = parts.find(p => p.type === 'day')?.value;
-  return `${year}/${month}/${day}`;
+  return toPersianNumbers(`${year}/${month}/${day}`);
+};
+
+export const parseRawNumber = (str: string): number => {
+  return Number(str.replace(/[^0-9]/g, ''));
 };
