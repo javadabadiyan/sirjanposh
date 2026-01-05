@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { AppData, Product } from '../types';
-import { formatCurrency, toPersianNumbers, getCurrentJalaliDate, parseRawNumber } from '../utils/formatters';
+import { formatCurrency, toPersianNumbers, getCurrentJalaliDate, parseRawNumber, toEnglishDigits } from '../utils/formatters';
 import * as XLSX from 'xlsx';
 
 interface InventoryProps {
@@ -59,9 +59,15 @@ const Inventory: React.FC<InventoryProps> = ({ data, setData }) => {
     setFormData({ code: '', name: '', buyPrice: '0', shippingCost: '0', marginPercent: '0', quantity: '0' });
   };
 
-  const formatInputNumber = (val: string) => {
-    const num = val.replace(/[^0-9]/g, '');
-    return num.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  const handlePriceChange = (field: string, value: string) => {
+    // تبدیل اعداد فارسی به انگلیسی و حذف کاراکترهای اضافه مثل کاما
+    const cleanValue = toEnglishDigits(value).replace(/[^0-9]/g, '');
+    setFormData({ ...formData, [field]: cleanValue });
+  };
+
+  const formatWithCommas = (val: string) => {
+    if (!val || val === '0') return '';
+    return val.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
   };
 
   const deleteProduct = (id: string) => {
@@ -72,19 +78,19 @@ const Inventory: React.FC<InventoryProps> = ({ data, setData }) => {
 
   const exportToExcel = () => {
     const wsData = data.products.map(p => ({
-      'کد کالا': toPersianNumbers(p.code),
+      'کد کالا': p.code,
       'نام کالا': p.name,
       'قیمت خرید (تومان)': p.buyPrice,
       'هزینه حمل (تومان)': p.shippingCost,
-      'درصد سود (%)': toPersianNumbers(p.marginPercent),
+      'درصد سود (%)': p.marginPercent,
       'قیمت فروش نهایی (تومان)': p.sellPrice,
-      'تعداد': toPersianNumbers(p.quantity),
+      'تعداد': p.quantity,
       'تاریخ ثبت': p.date
     }));
     const ws = XLSX.utils.json_to_sheet(wsData);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "SirjanPooshInventory");
-    XLSX.writeFile(wb, "Inventory_Backup.xlsx");
+    XLSX.writeFile(wb, "Inventory_List.xlsx");
   };
 
   const filtered = data.products.filter(p => p.name.includes(searchTerm) || p.code.includes(searchTerm));
@@ -180,7 +186,6 @@ const Inventory: React.FC<InventoryProps> = ({ data, setData }) => {
             </div>
             
             <form onSubmit={saveProduct} className="p-10 space-y-8">
-              {/* Basic Info */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
                   <label className="text-sm font-black text-gray-600 mr-2">کد اختصاصی کالا</label>
@@ -192,7 +197,6 @@ const Inventory: React.FC<InventoryProps> = ({ data, setData }) => {
                 </div>
               </div>
 
-              {/* Financial Calculations */}
               <div className="bg-indigo-50 p-8 rounded-[2rem] border-2 border-dashed border-indigo-200 space-y-6">
                 <h4 className="font-black text-indigo-900 text-center mb-2">محاسبه قیمت تمام شده و سود</h4>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -200,9 +204,10 @@ const Inventory: React.FC<InventoryProps> = ({ data, setData }) => {
                     <label className="text-xs font-black text-gray-500 mr-2">قیمت خرید (تومان)</label>
                     <input 
                       type="text" 
+                      placeholder="0"
                       className="w-full p-4 border-2 border-white rounded-2xl outline-none focus:border-indigo-500 font-black text-indigo-600 shadow-sm" 
-                      value={toPersianNumbers(formatInputNumber(formData.buyPrice))} 
-                      onChange={e => setFormData({...formData, buyPrice: e.target.value.replace(/[^0-9]/g, '')})} 
+                      value={toPersianNumbers(formatWithCommas(formData.buyPrice))} 
+                      onChange={e => handlePriceChange('buyPrice', e.target.value)} 
                       required 
                     />
                   </div>
@@ -210,18 +215,20 @@ const Inventory: React.FC<InventoryProps> = ({ data, setData }) => {
                     <label className="text-xs font-black text-gray-500 mr-2">هزینه کرایه حمل (تومان)</label>
                     <input 
                       type="text" 
+                      placeholder="0"
                       className="w-full p-4 border-2 border-white rounded-2xl outline-none focus:border-indigo-500 font-black shadow-sm" 
-                      value={toPersianNumbers(formatInputNumber(formData.shippingCost))} 
-                      onChange={e => setFormData({...formData, shippingCost: e.target.value.replace(/[^0-9]/g, '')})} 
+                      value={toPersianNumbers(formatWithCommas(formData.shippingCost))} 
+                      onChange={e => handlePriceChange('shippingCost', e.target.value)} 
                     />
                   </div>
                   <div className="space-y-2">
                     <label className="text-xs font-black text-gray-500 mr-2">درصد سود (٪)</label>
                     <input 
-                      type="number" 
+                      type="text" 
+                      placeholder="0"
                       className="w-full p-4 border-2 border-white rounded-2xl outline-none focus:border-indigo-500 font-black shadow-sm" 
-                      value={formData.marginPercent} 
-                      onChange={e => setFormData({...formData, marginPercent: e.target.value})} 
+                      value={toPersianNumbers(formData.marginPercent)} 
+                      onChange={e => handlePriceChange('marginPercent', e.target.value)} 
                     />
                   </div>
                 </div>
@@ -238,10 +245,9 @@ const Inventory: React.FC<InventoryProps> = ({ data, setData }) => {
                 </div>
               </div>
 
-              {/* Stock Info */}
               <div className="space-y-2">
                 <label className="text-sm font-black text-gray-600 mr-2">تعداد موجودی در انبار</label>
-                <input type="number" placeholder="0" className="w-full p-4 border-2 border-gray-100 rounded-[1.5rem] outline-none focus:border-indigo-500 font-black text-xl text-center bg-gray-50" value={formData.quantity} onChange={e => setFormData({...formData, quantity: e.target.value})} required />
+                <input type="text" placeholder="0" className="w-full p-4 border-2 border-gray-100 rounded-[1.5rem] outline-none focus:border-indigo-500 font-black text-xl text-center bg-gray-50" value={toPersianNumbers(formData.quantity)} onChange={e => handlePriceChange('quantity', e.target.value)} required />
               </div>
               
               <button type="submit" className="w-full bg-indigo-600 text-white py-6 rounded-[1.5rem] font-black text-2xl hover:bg-indigo-700 shadow-2xl shadow-indigo-200 transition-all active:scale-95">
