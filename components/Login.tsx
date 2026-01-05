@@ -16,13 +16,13 @@ const Login: React.FC<LoginProps> = ({ onLogin, users }) => {
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
     
-    // نرمال‌سازی ورودی‌ها (حذف فاصله‌ها و تبدیل اعداد فارسی به انگلیسی)
-    const cleanUsername = toEnglishDigits(username).trim();
+    // نرمال‌سازی ورودی‌ها (تبدیل به حروف کوچک، حذف فضاها و تبدیل اعداد)
+    const cleanUsername = toEnglishDigits(username).trim().toLowerCase();
     const cleanPassword = toEnglishDigits(password).trim();
 
-    // بررسی ادمین با رمز عبور مشخص شده توسط کاربر
+    // بررسی ادمین اصلی
     if (cleanUsername === 'admin' && cleanPassword === '5221157') {
-      const adminInDb = users.find(u => u.username === 'admin');
+      const adminInDb = users.find(u => u.username.toLowerCase() === 'admin');
       const adminUser: User = adminInDb || {
         id: '1',
         username: 'admin',
@@ -33,9 +33,9 @@ const Login: React.FC<LoginProps> = ({ onLogin, users }) => {
       return;
     }
 
-    // بررسی سایر کاربران با نرمال‌سازی داده‌های ذخیره شده
+    // بررسی سایر کاربران در لیست
     const user = users.find(u => 
-      toEnglishDigits(u.username).trim() === cleanUsername && 
+      toEnglishDigits(u.username).trim().toLowerCase() === cleanUsername && 
       toEnglishDigits(u.password || '').trim() === cleanPassword
     );
 
@@ -68,6 +68,9 @@ const Login: React.FC<LoginProps> = ({ onLogin, users }) => {
               value={username}
               onChange={e => setUsername(e.target.value)}
               required
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck="false"
             />
           </div>
           <div className="space-y-2">
@@ -79,6 +82,8 @@ const Login: React.FC<LoginProps> = ({ onLogin, users }) => {
               value={password}
               onChange={e => setPassword(e.target.value)}
               required
+              autoCapitalize="none"
+              autoCorrect="off"
             />
           </div>
 
