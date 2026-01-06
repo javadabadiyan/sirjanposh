@@ -17,11 +17,11 @@ const INITIAL_DATA = {
 };
 
 export default async function handler(request: Request) {
-  // دسترسی ایمن به متغیرهای محیطی در Vercel Edge
+  // دریافت متغیرهای محیطی در محیط Edge Vercel
   const databaseUrl = 
-    (process.env as any).DATABASE_URL || 
-    (process.env as any).POSTGRES_URL || 
-    (process.env as any).STORAGE_DATABASE_URL;
+    process.env.DATABASE_URL || 
+    process.env.POSTGRES_URL || 
+    process.env.STORAGE_DATABASE_URL;
   
   const headers = new Headers({
     'Content-Type': 'application/json; charset=utf-8',
@@ -39,7 +39,7 @@ export default async function handler(request: Request) {
   const sql = neon(databaseUrl);
 
   try {
-    // ایجاد جدول در صورت عدم وجود (تضمین نمایش صحیح متون فارسی با JSONB)
+    // ایجاد جدول در صورت عدم وجود (استفاده از JSONB برای پشتیبانی کامل از یونیکد فارسی)
     await sql`CREATE TABLE IF NOT EXISTS app_state (id INT PRIMARY KEY, content JSONB NOT NULL, updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP)`;
 
     if (request.method === 'GET') {
@@ -49,7 +49,13 @@ export default async function handler(request: Request) {
     }
 
     if (request.method === 'POST') {
-      const body = await request.json();
+      let body;
+      try {
+        body = await request.json();
+      } catch (e) {
+        return new Response(JSON.stringify({ error: 'فرمت داده نامعتبر' }), { status: 400, headers });
+      }
+
       await sql`
         INSERT INTO app_state (id, content, updated_at)
         VALUES (1, ${body}, CURRENT_TIMESTAMP)
@@ -61,9 +67,9 @@ export default async function handler(request: Request) {
 
     return new Response(JSON.stringify({ error: 'Method not allowed' }), { status: 405, headers });
   } catch (error: any) {
-    console.error('API Error:', error);
+    console.error('Database Operation Error:', error);
     return new Response(JSON.stringify({ 
-      error: 'خطای سرور', 
+      error: 'خطای عملیاتی در دیتابیس', 
       details: error?.message || String(error) 
     }), { status: 500, headers });
   }
