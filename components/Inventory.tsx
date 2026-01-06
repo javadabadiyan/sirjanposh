@@ -67,12 +67,12 @@ const Inventory: React.FC<InventoryProps> = ({ data, setData, currentUser }) => 
       return {
         'کد کالا': p.code,
         'نام کالا': p.name,
-        'قیمت خرید (تومان)': formatWithCommas(p.buyPrice),
-        'کرایه حمل (تومان)': formatWithCommas(p.shippingCost),
+        'قیمت خرید اصلی (تومان)': formatWithCommas(p.buyPrice),
+        'هزینه کرایه (تومان)': formatWithCommas(p.shippingCost),
         'قیمت تمام شده (تومان)': formatWithCommas(p.buyPrice + p.shippingCost),
+        'مبلغ سود خالص هر عدد (تومان)': formatWithCommas(profitPerUnit),
         'درصد سود (%)': p.marginPercent,
-        'مبلغ سود واحد (تومان)': formatWithCommas(profitPerUnit),
-        'قیمت فروش (تومان)': formatWithCommas(p.sellPrice),
+        'قیمت نهایی فروش (تومان)': formatWithCommas(p.sellPrice),
         'موجودی فعلی': p.quantity,
         'تعداد فروخته شده': sold,
         'کل ورودی انبار': p.quantity + sold,
@@ -82,8 +82,8 @@ const Inventory: React.FC<InventoryProps> = ({ data, setData, currentUser }) => 
 
     const ws = XLSX.utils.json_to_sheet(wsData);
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Inventory");
-    XLSX.writeFile(wb, `Inventory_Detailed_SirjanPoosh_${getCurrentJalaliDate().replace(/\//g, '-')}.xlsx`);
+    XLSX.utils.book_append_sheet(wb, ws, "Inventory_SirjanPoosh");
+    XLSX.writeFile(wb, `Inventory_Report_${getCurrentJalaliDate().replace(/\//g, '-')}.xlsx`);
   };
 
   const filtered = (data.products || []).filter(p => 
@@ -145,31 +145,38 @@ const Inventory: React.FC<InventoryProps> = ({ data, setData, currentUser }) => 
                 </div>
               </div>
 
-              {/* بخش جدید: تفکیک قیمت و سود */}
-              <div className="space-y-2 mb-5 px-1 bg-indigo-50/30 p-3 rounded-2xl border border-indigo-100/50">
-                <div className="flex justify-between text-[10px] font-bold text-slate-500">
-                   <span>قیمت خرید:</span>
-                   <span>{formatCurrency(p.buyPrice)}</span>
-                </div>
-                <div className="flex justify-between text-[10px] font-bold text-slate-500">
-                   <span>کرایه حمل:</span>
-                   <span>{formatCurrency(p.shippingCost)}</span>
-                </div>
-                <div className="flex justify-between items-center pt-1 border-t border-indigo-100">
-                   <span className="text-[10px] font-black text-emerald-700">سود هر واحد:</span>
-                   <span className="text-xs font-black text-emerald-600">{formatCurrency(unitProfit)} <span className="text-[8px] opacity-70">({toPersianNumbers(p.marginPercent)}٪)</span></span>
-                </div>
+              {/* جدول جزئیات مالی در کارت کالا */}
+              <div className="mb-5 bg-slate-900 text-white rounded-2xl overflow-hidden border border-slate-800">
+                 <div className="grid grid-cols-2 text-[9px] font-black text-slate-400 border-b border-slate-800/50">
+                    <div className="p-2 border-l border-slate-800/50">عنوان</div>
+                    <div className="p-2">مبلغ (تومان)</div>
+                 </div>
+                 <div className="grid grid-cols-2 text-[10px] border-b border-slate-800/30">
+                    <div className="p-2 border-l border-slate-800/30 font-bold">قیمت خرید</div>
+                    <div className="p-2 font-black text-slate-200">{formatCurrency(p.buyPrice).replace(' تومان', '')}</div>
+                 </div>
+                 <div className="grid grid-cols-2 text-[10px] border-b border-slate-800/30">
+                    <div className="p-2 border-l border-slate-800/30 font-bold">هزینه کرایه</div>
+                    <div className="p-2 font-black text-slate-200">{formatCurrency(p.shippingCost).replace(' تومان', '')}</div>
+                 </div>
+                 <div className="grid grid-cols-2 text-[10px] bg-emerald-950/30">
+                    <div className="p-2 border-l border-slate-800/30 font-black text-emerald-400">سود هر واحد</div>
+                    <div className="p-2 font-black text-emerald-400">{formatCurrency(unitProfit).replace(' تومان', '')}</div>
+                 </div>
               </div>
               
               <div className="flex justify-between items-center mb-5 px-1">
                 <div>
-                  <p className="text-[8px] font-black text-slate-400">قیمت نهایی فروش</p>
-                  <p className="text-sm md:text-base font-black text-indigo-950">{formatCurrency(p.sellPrice)}</p>
+                  <p className="text-[8px] font-black text-slate-400">قیمت نهایی فروش (در فاکتور)</p>
+                  <p className="text-base md:text-lg font-black text-indigo-600">{formatCurrency(p.sellPrice)}</p>
+                </div>
+                <div className="bg-indigo-50 px-2 py-1 rounded-lg">
+                  <p className="text-[10px] font-black text-indigo-700">{toPersianNumbers(p.marginPercent)}٪ سود</p>
                 </div>
               </div>
 
               <div className="flex gap-2">
-                <button onClick={() => { setEditingProduct(p); setFormData({ code: p.code, name: p.name, buyPrice: p.buyPrice.toString(), shippingCost: p.shippingCost.toString(), marginPercent: p.marginPercent.toString(), quantity: p.quantity.toString(), date: p.date }); setShowModal(true); }} className="flex-[2] bg-slate-900 text-white py-3 md:py-4 rounded-xl md:rounded-2xl font-black text-[10px] md:text-xs hover:bg-black transition-all shadow-lg active:scale-95 min-h-[44px]">📝 ویرایش</button>
+                <button onClick={() => { setEditingProduct(p); setFormData({ code: p.code, name: p.name, buyPrice: p.buyPrice.toString(), shippingCost: p.shippingCost.toString(), marginPercent: p.marginPercent.toString(), quantity: p.quantity.toString(), date: p.date }); setShowModal(true); }} className="flex-[2] bg-slate-100 text-slate-700 py-3 md:py-4 rounded-xl md:rounded-2xl font-black text-[10px] md:text-xs hover:bg-indigo-600 hover:text-white transition-all shadow-sm active:scale-95 min-h-[44px]">📝 ویرایش</button>
                 <button onClick={() => { if(confirm('حذف کالا؟')) setData({...data, products: data.products.filter(item => item.id !== p.id)}) }} className="flex-1 bg-red-50 text-red-500 px-3 rounded-xl md:rounded-2xl font-black text-xs hover:bg-red-600 hover:text-white transition-all min-h-[44px]">🗑️</button>
               </div>
             </div>
