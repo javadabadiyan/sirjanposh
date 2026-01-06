@@ -16,8 +16,7 @@ const INITIAL_DATA = {
   users: [{ id: '1', username: 'admin', password: '5221157', role: 'admin', permissions: ['dashboard', 'inventory', 'partners', 'invoices', 'users', 'backup'] }]
 };
 
-export default async function handler(request: Request) {
-  // شناسایی هوشمند دیتابیس از میان تمام متغیرهای احتمالی Vercel
+export default async function (request: Request) {
   const databaseUrl = 
     process.env.DATABASE_URL || 
     process.env.POSTGRES_URL || 
@@ -26,20 +25,19 @@ export default async function handler(request: Request) {
   
   const headers = new Headers({
     'Content-Type': 'application/json; charset=utf-8',
+    'Access-Control-Allow-Origin': '*',
     'Cache-Control': 'no-store, no-cache, must-revalidate'
   });
 
   if (!databaseUrl) {
     return new Response(JSON.stringify({ 
-      error: 'دیتابیس شناسایی نشد', 
-      message: 'لطفاً در پنل Vercel بررسی کنید که متغیرهای محیطی دیتابیس وجود داشته باشند.' 
+      error: 'Database connection string missing' 
     }), { status: 500, headers });
   }
 
   const sql = neon(databaseUrl);
 
   try {
-    // ایجاد جدول در صورتی که دیتابیس تازه ساخته شده باشد
     await sql`CREATE TABLE IF NOT EXISTS app_state (id INT PRIMARY KEY, content JSONB NOT NULL, updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP)`;
 
     if (request.method === 'GET') {
@@ -49,29 +47,19 @@ export default async function handler(request: Request) {
     }
 
     if (request.method === 'POST') {
-      let body;
-      try {
-        body = await request.json();
-      } catch (e) {
-        return new Response(JSON.stringify({ error: 'فرمت داده نامعتبر' }), { status: 400, headers });
-      }
-
+      const body = await request.json();
       await sql`
         INSERT INTO app_state (id, content, updated_at)
         VALUES (1, ${body}, CURRENT_TIMESTAMP)
         ON CONFLICT (id) 
         DO UPDATE SET content = ${body}, updated_at = CURRENT_TIMESTAMP
       `;
-      
       return new Response(JSON.stringify({ success: true }), { status: 200, headers });
     }
 
-    return new Response(JSON.stringify({ error: 'Method Not Allowed' }), { status: 405, headers });
+    return new Response(JSON.stringify({ error: 'Method not allowed' }), { status: 405, headers });
   } catch (error) {
-    console.error('Database Error:', error);
-    return new Response(JSON.stringify({ 
-      error: 'خطای دیتابیس', 
-      details: String(error) 
-    }), { status: 500, headers });
+    console.error('API Error:', error);
+    return new Response(JSON.stringify({ error: 'Database error', details: String(error) }), { status: 500, headers });
   }
 }
