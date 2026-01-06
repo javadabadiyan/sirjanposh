@@ -1,6 +1,6 @@
 
 import React, { useState, useRef } from 'react';
-import { AppData, Invoice, InvoiceItem } from '../types';
+import { AppData, Invoice, InvoiceItem, Product } from '../types';
 import { formatCurrency, toPersianNumbers, getCurrentJalaliDate, formatWithCommas } from '../utils/formatters';
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
@@ -38,6 +38,11 @@ const Invoices: React.FC<InvoicesProps> = ({ data, setData }) => {
   const addItem = () => {
     const product = data.products.find(p => p.id === selectedProduct);
     if (!product) return;
+
+    if (product.quantity < qty) {
+      alert(`موجودی کالا کافی نیست! موجودی فعلی: ${toPersianNumbers(product.quantity)} عدد`);
+      return;
+    }
     
     const existingIdx = items.findIndex(i => i.productId === product.id);
     if (existingIdx > -1) {
@@ -62,6 +67,41 @@ const Invoices: React.FC<InvoicesProps> = ({ data, setData }) => {
       return;
     }
 
+    // کپی از محصولات فعلی برای به‌روزرسانی موجودی
+    let updatedProducts = [...data.products];
+
+    // اگر در حال ویرایش هستیم، ابتدا موجودی فاکتور قبلی را برمی‌گردانیم
+    if (editingInvoice) {
+      editingInvoice.items.forEach(oldItem => {
+        const prodIdx = updatedProducts.findIndex(p => p.id === oldItem.productId);
+        if (prodIdx > -1) {
+          updatedProducts[prodIdx] = {
+            ...updatedProducts[prodIdx],
+            quantity: updatedProducts[prodIdx].quantity + oldItem.quantity
+          };
+        }
+      });
+    }
+
+    // کسر موجودی کالاهای فاکتور جدید/ویرایش شده
+    let stockError = false;
+    items.forEach(newItem => {
+      const prodIdx = updatedProducts.findIndex(p => p.id === newItem.productId);
+      if (prodIdx > -1) {
+        if (updatedProducts[prodIdx].quantity < newItem.quantity) {
+          stockError = true;
+          alert(`خطا: موجودی کالای "${newItem.name}" برای ثبت این فاکتور کافی نیست.`);
+        } else {
+          updatedProducts[prodIdx] = {
+            ...updatedProducts[prodIdx],
+            quantity: updatedProducts[prodIdx].quantity - newItem.quantity
+          };
+        }
+      }
+    });
+
+    if (stockError) return;
+
     const invData: Invoice = {
       id: editingInvoice ? editingInvoice.id : Date.now().toString(),
       customerName,
@@ -76,7 +116,12 @@ const Invoices: React.FC<InvoicesProps> = ({ data, setData }) => {
       ? data.invoices.map(inv => inv.id === editingInvoice.id ? invData : inv)
       : [...data.invoices, invData];
 
-    setData({ ...data, invoices: updatedInvoices });
+    setData({ 
+      ...data, 
+      invoices: updatedInvoices,
+      products: updatedProducts
+    });
+
     setShowModal(false);
     setEditingInvoice(null);
     setItems([]);
@@ -84,6 +129,28 @@ const Invoices: React.FC<InvoicesProps> = ({ data, setData }) => {
     setCustomerAddress('');
     setCustomerPhone('');
     setInvoiceDate('');
+  };
+
+  const deleteInvoice = (invId: string) => {
+    if(!confirm('آیا از حذف این فاکتور اطمینان دارید؟ موجودی کالاها به انبار بازگردانده خواهد شد.')) return;
+
+    const invoiceToDelete = data.invoices.find(i => i.id === invId);
+    if (!invoiceToDelete) return;
+
+    // بازگرداندن موجودی کالاها به انبار
+    const updatedProducts = data.products.map(p => {
+      const soldItem = invoiceToDelete.items.find(si => si.productId === p.id);
+      if (soldItem) {
+        return { ...p, quantity: p.quantity + soldItem.quantity };
+      }
+      return p;
+    });
+
+    setData({
+      ...data,
+      invoices: data.invoices.filter(i => i.id !== invId),
+      products: updatedProducts
+    });
   };
 
   const exportJPG = async () => {
@@ -140,7 +207,7 @@ const Invoices: React.FC<InvoicesProps> = ({ data, setData }) => {
             <div className="flex gap-2">
               <button onClick={() => setShowPrintModal(inv)} className="flex-1 bg-indigo-50 text-indigo-600 py-3 rounded-xl font-black text-xs hover:bg-indigo-600 hover:text-white transition-all">👁️ مشاهده</button>
               <button onClick={() => handleEdit(inv)} className="flex-1 bg-blue-50 text-blue-600 py-3 rounded-xl font-black text-xs hover:bg-blue-600 hover:text-white transition-all">📝 ویرایش</button>
-              <button onClick={() => { if(confirm('حذف فاکتور؟')) setData({...data, invoices: data.invoices.filter(i=>i.id!==inv.id)}) }} className="bg-red-50 text-red-500 px-4 py-3 rounded-xl font-black text-sm">🗑️</button>
+              <button onClick={() => deleteInvoice(inv.id)} className="bg-red-50 text-red-500 px-4 py-3 rounded-xl font-black text-sm">🗑️</button>
             </div>
           </div>
         ))}
@@ -190,7 +257,7 @@ const Invoices: React.FC<InvoicesProps> = ({ data, setData }) => {
                 <div className="flex flex-col md:flex-row gap-4">
                   <select className="flex-1 p-5 rounded-2xl font-black outline-none shadow-inner" value={selectedProduct} onChange={e => setSelectedProduct(e.target.value)}>
                     <option value="">🛒 انتخاب از انبار کالا...</option>
-                    {data.products.map(p => <option key={p.id} value={p.id}>{p.name} ({formatCurrency(p.sellPrice)}) - موجود: {toPersianNumbers(p.quantity)}</option>)}
+                    {data.products.map(p => <option key={p.id} value={p.id} disabled={p.quantity <= 0}>{p.name} ({formatCurrency(p.sellPrice)}) - موجود: {toPersianNumbers(p.quantity)}</option>)}
                   </select>
                   <div className="flex gap-2">
                     <input type="number" min="1" className="w-24 p-5 rounded-2xl text-center font-black shadow-inner" value={qty} onChange={e => setQty(Number(e.target.value))} />
