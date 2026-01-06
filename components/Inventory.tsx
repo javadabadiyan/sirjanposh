@@ -34,26 +34,26 @@ const Inventory: React.FC<InventoryProps> = ({ data, setData, currentUser }) => 
   const saveProduct = (e: React.FormEvent) => {
     e.preventDefault();
 
-    // چک کردن کد تکراری کالا
+    const normalizedCode = toEnglishDigits(formData.code).trim();
     const duplicateProduct = data.products.find(p => 
-      p.code.trim() === formData.code.trim() && p.id !== (editingProduct?.id || '')
+      toEnglishDigits(p.code).trim() === normalizedCode && p.id !== (editingProduct?.id || '')
     );
 
     if (duplicateProduct) {
-      const confirmDuplicate = confirm(`⚠️ هشدار: کد کالای "${formData.code}" قبلاً برای محصول "${duplicateProduct.name}" ثبت شده است. آیا مایلید کالا با کد تکراری ثبت شود؟`);
+      const confirmDuplicate = confirm(`⚠️ هشدار: کد کالای "${toPersianNumbers(formData.code)}" قبلاً برای محصول "${duplicateProduct.name}" ثبت شده است. آیا مایلید کالا با کد تکراری ثبت شود؟`);
       if (!confirmDuplicate) return;
     }
 
     const newProduct: Product = {
       id: editingProduct ? editingProduct.id : Date.now().toString(),
-      code: formData.code,
+      code: toPersianNumbers(formData.code),
       name: formData.name,
       buyPrice: parseRawNumber(formData.buyPrice),
       shippingCost: parseRawNumber(formData.shippingCost),
       marginPercent: parseRawNumber(formData.marginPercent),
       quantity: parseRawNumber(formData.quantity),
       sellPrice: calculateFinalPrice(),
-      date: formData.date || getCurrentJalaliDate(),
+      date: toPersianNumbers(formData.date || getCurrentJalaliDate()),
       registeredBy: editingProduct ? editingProduct.registeredBy : (currentUser?.username || 'admin')
     };
 
@@ -76,34 +76,33 @@ const Inventory: React.FC<InventoryProps> = ({ data, setData, currentUser }) => 
       const sold = getSoldCount(p.id);
       const profitPerUnit = p.sellPrice - (p.buyPrice + p.shippingCost);
       return {
-        'کد کالا': p.code,
+        'کد کالا': toEnglishDigits(p.code),
         'نام کالا': p.name,
-        'قیمت خرید اصلی (تومان)': formatWithCommas(p.buyPrice),
-        'هزینه کرایه (تومان)': formatWithCommas(p.shippingCost),
-        'قیمت تمام شده (تومان)': formatWithCommas(p.buyPrice + p.shippingCost),
-        'مبلغ سود خالص هر عدد (تومان)': formatWithCommas(profitPerUnit),
+        'قیمت خرید اصلی (تومان)': p.buyPrice,
+        'هزینه کرایه (تومان)': p.shippingCost,
+        'قیمت تمام شده (تومان)': (p.buyPrice + p.shippingCost),
+        'مبلغ سود خالص هر عدد (تومان)': profitPerUnit,
         'درصد سود (%)': p.marginPercent,
-        'قیمت نهایی فروش (تومان)': formatWithCommas(p.sellPrice),
+        'قیمت نهایی فروش (تومان)': p.sellPrice,
         'موجودی فعلی': p.quantity,
         'تعداد فروخته شده': sold,
         'کل ورودی انبار': p.quantity + sold,
-        'تاریخ ثبت': p.date
+        'تاریخ ثبت': toEnglishDigits(p.date)
       };
     });
 
     const ws = XLSX.utils.json_to_sheet(wsData);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Inventory_SirjanPoosh");
-    XLSX.writeFile(wb, `Inventory_Report_${getCurrentJalaliDate().replace(/\//g, '-')}.xlsx`);
+    XLSX.writeFile(wb, `Inventory_Report_${toEnglishDigits(getCurrentJalaliDate()).replace(/\//g, '-')}.xlsx`);
   };
 
   const filtered = (data.products || []).filter(p => 
-    p.name.includes(searchTerm) || p.code.includes(searchTerm)
+    p.name.includes(searchTerm) || toPersianNumbers(p.code).includes(toPersianNumbers(searchTerm))
   );
 
   return (
     <div className="space-y-4 md:space-y-6 animate-fadeIn pb-16 w-full">
-      {/* هدر بخش انبار */}
       <div className="flex flex-col md:flex-row justify-between items-stretch gap-3 bg-white p-4 md:p-6 rounded-[1.5rem] md:rounded-[2.5rem] shadow-sm border border-slate-100">
         <div className="relative flex-1">
           <input type="text" placeholder="جستجوی نام یا کد کالا..." className="w-full pr-10 py-3 md:py-4.5 bg-slate-50 border-2 border-transparent rounded-xl md:rounded-2xl outline-none focus:border-indigo-500 font-bold transition-all text-xs md:text-sm shadow-inner" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
@@ -115,12 +114,10 @@ const Inventory: React.FC<InventoryProps> = ({ data, setData, currentUser }) => 
         </div>
       </div>
 
-      {/* لیست کالاها */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6">
         {filtered.map(p => {
           const sold = getSoldCount(p.id);
           const totalInventory = p.quantity + sold;
-          const soldPercentage = totalInventory > 0 ? (sold / totalInventory) * 100 : 0;
           const isLowStock = p.quantity <= 3;
           const unitProfit = p.sellPrice - (p.buyPrice + p.shippingCost);
 
@@ -156,7 +153,6 @@ const Inventory: React.FC<InventoryProps> = ({ data, setData, currentUser }) => 
                 </div>
               </div>
 
-              {/* جدول جزئیات مالی در کارت کالا */}
               <div className="mb-5 bg-slate-900 text-white rounded-2xl overflow-hidden border border-slate-800">
                  <div className="grid grid-cols-2 text-[9px] font-black text-slate-400 border-b border-slate-800/50">
                     <div className="p-2 border-l border-slate-800/50">عنوان</div>
@@ -178,7 +174,7 @@ const Inventory: React.FC<InventoryProps> = ({ data, setData, currentUser }) => 
               
               <div className="flex justify-between items-center mb-5 px-1">
                 <div>
-                  <p className="text-[8px] font-black text-slate-400">قیمت نهایی فروش (در فاکتور)</p>
+                  <p className="text-[8px] font-black text-slate-400">قیمت نهایی فروش</p>
                   <p className="text-base md:text-lg font-black text-indigo-600">{formatCurrency(p.sellPrice)}</p>
                 </div>
                 <div className="bg-indigo-50 px-2 py-1 rounded-lg">
@@ -195,7 +191,6 @@ const Inventory: React.FC<InventoryProps> = ({ data, setData, currentUser }) => 
         })}
       </div>
 
-      {/* مدال ثبت کالا */}
       {showModal && (
         <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-slate-900/90 backdrop-blur-md safe-padding">
           <div className="bg-white w-full h-full md:h-auto md:max-h-[95vh] md:max-w-2xl md:rounded-[2.5rem] shadow-2xl relative z-[1100] flex flex-col animate-fadeIn overflow-hidden">
@@ -207,10 +202,22 @@ const Inventory: React.FC<InventoryProps> = ({ data, setData, currentUser }) => 
             <div className="flex-1 overflow-y-auto p-5 md:p-10 bg-slate-50/30">
               <form id="product-form" onSubmit={saveProduct} className="space-y-4 md:space-y-6 pb-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-1"><label className="text-[9px] font-black text-slate-500 mr-2">کد کالا</label><input required className="w-full p-3.5 bg-white border-2 border-slate-100 rounded-xl outline-none focus:border-indigo-500 font-bold text-center" value={formData.code} onChange={e => setFormData({...formData, code: e.target.value})} /></div>
-                  <div className="space-y-1"><label className="text-[9px] font-black text-slate-500 mr-2">نام دقیق لباس</label><input required className="w-full p-3.5 bg-white border-2 border-slate-100 rounded-xl outline-none focus:border-indigo-500 font-bold" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} /></div>
-                  <div className="space-y-1"><label className="text-[9px] font-black text-slate-500 mr-2">تعداد فعلی</label><input required type="text" className="w-full p-3.5 bg-white border-2 border-slate-100 rounded-xl outline-none focus:border-indigo-500 font-black text-center text-lg text-indigo-700" value={toPersianNumbers(formData.quantity)} onChange={e => handleNumericChange('quantity', e.target.value)} /></div>
-                  <div className="space-y-1"><label className="text-[9px] font-black text-slate-500 mr-2">تاریخ ثبت (قابل ویرایش)</label><input required className="w-full p-3.5 bg-white border-2 border-slate-100 rounded-xl outline-none focus:border-indigo-500 font-bold text-center" value={formData.date} onChange={e => setFormData({...formData, date: e.target.value})} /></div>
+                  <div className="space-y-1">
+                    <label className="text-[9px] font-black text-slate-500 mr-2">کد کالا</label>
+                    <input required className="w-full p-3.5 bg-white border-2 border-slate-100 rounded-xl outline-none focus:border-indigo-500 font-bold text-center" value={toPersianNumbers(formData.code)} onChange={e => setFormData({...formData, code: e.target.value})} />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[9px] font-black text-slate-500 mr-2">نام دقیق لباس</label>
+                    <input required className="w-full p-3.5 bg-white border-2 border-slate-100 rounded-xl outline-none focus:border-indigo-500 font-bold" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[9px] font-black text-slate-500 mr-2">تعداد فعلی</label>
+                    <input required type="text" className="w-full p-3.5 bg-white border-2 border-slate-100 rounded-xl outline-none focus:border-indigo-500 font-black text-center text-lg text-indigo-700" value={toPersianNumbers(formData.quantity)} onChange={e => handleNumericChange('quantity', e.target.value)} />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[9px] font-black text-slate-500 mr-2">تاریخ ثبت (فارسی)</label>
+                    <input required className="w-full p-3.5 bg-white border-2 border-slate-100 rounded-xl outline-none focus:border-indigo-500 font-black text-center" value={toPersianNumbers(formData.date)} onChange={e => setFormData({...formData, date: e.target.value})} />
+                  </div>
                 </div>
 
                 <div className="p-4 md:p-6 bg-white rounded-2xl border-2 border-slate-100 shadow-inner space-y-4">

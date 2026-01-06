@@ -30,7 +30,7 @@ const Invoices: React.FC<InvoicesProps> = ({ data, setData }) => {
     setCustomerName(inv.customerName);
     setCustomerAddress(inv.customerAddress || '');
     setCustomerPhone(inv.customerPhone || '');
-    setInvoiceDate(inv.date);
+    setInvoiceDate(toPersianNumbers(inv.date));
     setItems([...inv.items]);
     setShowModal(true);
   };
@@ -103,10 +103,10 @@ const Invoices: React.FC<InvoicesProps> = ({ data, setData }) => {
       id: editingInvoice ? editingInvoice.id : Date.now().toString(),
       customerName,
       customerAddress,
-      customerPhone,
+      customerPhone: toPersianNumbers(customerPhone),
       items,
       totalAmount: items.reduce((acc, i) => acc + (i.price * i.quantity), 0),
-      date: invoiceDate || getCurrentJalaliDate()
+      date: toPersianNumbers(invoiceDate || getCurrentJalaliDate())
     };
 
     const updatedInvoices = editingInvoice 
@@ -170,13 +170,13 @@ const Invoices: React.FC<InvoicesProps> = ({ data, setData }) => {
     pdf.save(`Invoice-${showPrintModal?.id.slice(-4)}.pdf`);
   };
 
-  const filtered = data.invoices.filter(i => i.customerName.includes(searchTerm) || i.customerPhone?.includes(searchTerm)).reverse();
+  const filtered = data.invoices.filter(i => i.customerName.includes(searchTerm) || toPersianNumbers(i.customerPhone || '').includes(toPersianNumbers(searchTerm))).reverse();
 
   return (
     <div className="space-y-6 animate-slide-up pb-20">
       <div className="flex flex-col md:flex-row justify-between items-center gap-4 bg-white p-5 md:p-6 rounded-[2.2rem] md:rounded-[2.5rem] shadow-sm border border-slate-100">
         <div className="relative w-full md:w-96">
-          <input placeholder="🔍 جستجوی مشتری..." className="w-full pr-12 py-4.5 bg-slate-50 border-none rounded-2xl font-bold outline-none focus:ring-2 focus:ring-indigo-500 transition-all shadow-inner" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+          <input placeholder="🔍 جستجوی مشتری یا شماره..." className="w-full pr-12 py-4.5 bg-slate-50 border-none rounded-2xl font-bold outline-none focus:ring-2 focus:ring-indigo-500 transition-all shadow-inner" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
           <span className="absolute right-4 top-1/2 -translate-y-1/2 opacity-30">🔍</span>
         </div>
         <button onClick={() => { setEditingInvoice(null); setCustomerName(''); setCustomerAddress(''); setCustomerPhone(''); setInvoiceDate(getCurrentJalaliDate()); setItems([]); setShowModal(true); }} className="w-full md:w-auto bg-indigo-600 text-white px-10 py-5 rounded-[1.5rem] font-black shadow-xl hover:bg-indigo-700 transition-all active:scale-95 text-lg min-h-[60px]">+ صدور فاکتور</button>
@@ -194,12 +194,10 @@ const Invoices: React.FC<InvoicesProps> = ({ data, setData }) => {
               </div>
               <span className="text-[10px] font-bold text-slate-400 bg-slate-50 px-3 py-1.5 rounded-full shrink-0">{toPersianNumbers(inv.date)}</span>
             </div>
-            
             <div className="bg-slate-50 p-5 rounded-2xl mb-8 border border-slate-100/50">
               <p className="text-[9px] font-black text-slate-400 mb-1">مبلغ نهایی</p>
               <p className="text-2xl font-black text-emerald-600 truncate">{formatCurrency(inv.totalAmount)}</p>
             </div>
-
             <div className="flex gap-2.5">
               <button onClick={() => setShowPrintModal(inv)} className="flex-1 bg-indigo-50 text-indigo-600 py-3.5 rounded-2xl font-black text-xs hover:bg-indigo-600 hover:text-white transition-all shadow-sm">👁️ نمایش</button>
               <button onClick={() => handleEdit(inv)} className="flex-1 bg-blue-50 text-blue-600 py-3.5 rounded-2xl font-black text-xs hover:bg-blue-600 hover:text-white transition-all shadow-sm">📝 ویرایش</button>
@@ -217,12 +215,10 @@ const Invoices: React.FC<InvoicesProps> = ({ data, setData }) => {
                 <div className="text-2xl bg-indigo-600 p-3 rounded-2xl">📜</div>
                 <div>
                   <h3 className="text-lg md:text-2xl font-black leading-tight">{editingInvoice ? 'ویرایش فاکتور' : 'صدور فاکتور جدید'}</h3>
-                  <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest hidden md:block">Invoicing System v2</p>
                 </div>
               </div>
               <button onClick={() => setShowModal(false)} className="w-12 h-12 flex items-center justify-center bg-white/10 rounded-2xl text-2xl hover:bg-red-500 transition-all shadow-sm">&times;</button>
             </div>
-            
             <div className="p-6 md:p-8 overflow-y-auto flex-1 space-y-6 md:space-y-8 bg-slate-50/30">
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
                 <div className="space-y-1.5">
@@ -230,16 +226,16 @@ const Invoices: React.FC<InvoicesProps> = ({ data, setData }) => {
                   <input className="w-full p-4 bg-white border-2 border-slate-100 rounded-2xl font-bold outline-none focus:border-indigo-500 shadow-sm" value={customerName} onChange={e => setCustomerName(e.target.value)} />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-[10px] font-black text-slate-400 mr-2 uppercase">شماره تماس</label>
-                  <input className="w-full p-4 bg-white border-2 border-slate-100 rounded-2xl font-bold outline-none focus:border-indigo-500 shadow-sm text-center" value={customerPhone} onChange={e => setCustomerPhone(e.target.value)} />
+                  <label className="text-[10px] font-black text-slate-400 mr-2 uppercase">شماره تماس (فارسی)</label>
+                  <input className="w-full p-4 bg-white border-2 border-slate-100 rounded-2xl font-bold outline-none focus:border-indigo-500 shadow-sm text-center" value={toPersianNumbers(customerPhone)} onChange={e => setCustomerPhone(e.target.value)} />
                 </div>
                 <div className="space-y-1.5 sm:col-span-2 lg:col-span-1">
                   <label className="text-[10px] font-black text-slate-400 mr-2 uppercase">آدرس مشتری</label>
                   <input className="w-full p-4 bg-white border-2 border-slate-100 rounded-2xl font-bold outline-none focus:border-indigo-500 shadow-sm" value={customerAddress} onChange={e => setCustomerAddress(e.target.value)} />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-[10px] font-black text-slate-400 mr-2 uppercase">تاریخ فاکتور</label>
-                  <input className="w-full p-4 bg-white border-2 border-slate-100 rounded-2xl font-black text-center text-indigo-600 outline-none focus:border-indigo-500 shadow-sm" value={invoiceDate} onChange={e => setInvoiceDate(e.target.value)} />
+                  <label className="text-[10px] font-black text-slate-400 mr-2 uppercase">تاریخ فاکتور (فارسی)</label>
+                  <input className="w-full p-4 bg-white border-2 border-slate-100 rounded-2xl font-black text-center text-indigo-600 outline-none focus:border-indigo-500 shadow-sm" value={toPersianNumbers(invoiceDate)} onChange={e => setInvoiceDate(e.target.value)} />
                 </div>
               </div>
 
@@ -281,9 +277,6 @@ const Invoices: React.FC<InvoicesProps> = ({ data, setData }) => {
                           </td>
                         </tr>
                       ))}
-                      {items.length === 0 && (
-                        <tr><td colSpan={5} className="p-10 text-center text-slate-300 font-black">هنوز کالایی انتخاب نکرده‌اید.</td></tr>
-                      )}
                     </tbody>
                   </table>
                 </div>
@@ -309,7 +302,6 @@ const Invoices: React.FC<InvoicesProps> = ({ data, setData }) => {
             <button onClick={exportPDF} className="flex-1 md:flex-none bg-red-600 text-white px-8 py-4.5 rounded-2xl font-black flex items-center justify-center gap-2 text-sm">📄 PDF</button>
             <button onClick={() => setShowPrintModal(null)} className="w-full md:w-auto bg-white text-slate-500 px-8 py-4.5 rounded-2xl font-black border-2 border-slate-200 text-sm">بازگشت</button>
           </div>
-          
           <div ref={invoiceRef} className="invoice-container w-full max-w-[210mm] min-h-[297mm] p-8 md:p-16 rounded-xl bg-white shadow-2xl relative mb-20 border-t-[15px] md:border-t-[20px] border-slate-900 origin-top">
              <div className="flex flex-col md:flex-row justify-between items-start mb-12 md:mb-20 gap-8">
                 <div>
@@ -324,7 +316,6 @@ const Invoices: React.FC<InvoicesProps> = ({ data, setData }) => {
                    </div>
                 </div>
              </div>
-
              <div className="mb-8 md:mb-12 p-6 md:p-8 bg-slate-900 rounded-[2rem] md:rounded-[2.5rem] text-white">
                 <p className="text-[10px] opacity-50 mb-2">اطلاعات خریدار:</p>
                 <p className="text-2xl md:text-3xl font-black mb-1">{showPrintModal.customerName}</p>
@@ -335,7 +326,6 @@ const Invoices: React.FC<InvoicesProps> = ({ data, setData }) => {
                   <p className="text-[11px] md:text-sm font-bold opacity-75 mt-2 border-t border-white/10 pt-2">آدرس: {showPrintModal.customerAddress}</p>
                 )}
              </div>
-
              <div className="overflow-x-auto -mx-2 mb-12">
                <table className="w-full border-collapse rounded-3xl overflow-hidden min-w-[500px]">
                   <thead><tr className="bg-slate-100 text-slate-500 text-xs"><th className="p-5 text-right">شرح کالا</th><th className="p-5 text-center">تعداد</th><th className="p-5 text-center">واحد (تومان)</th><th className="p-5 text-center">جمع کل</th></tr></thead>
@@ -346,18 +336,12 @@ const Invoices: React.FC<InvoicesProps> = ({ data, setData }) => {
                   </tbody>
                </table>
              </div>
-
              <div className="flex flex-col md:flex-row justify-between items-center bg-slate-900 p-8 md:p-10 rounded-[2.5rem] md:rounded-[3rem] text-white shadow-2xl gap-6">
                 <div className="text-center md:text-right">
                    <p className="text-[10px] opacity-50 uppercase tracking-widest mb-1">مبلغ نهایی قابل پرداخت:</p>
                    <p className="text-3xl md:text-5xl font-black text-emerald-400">{formatCurrency(showPrintModal.totalAmount)}</p>
                 </div>
                 <div className="text-center md:text-left opacity-30 italic font-black text-base md:text-xl">تراکنش با موفقیت ثبت شد</div>
-             </div>
-             
-             <div className="mt-16 md:mt-20 pt-10 border-t-2 border-dashed border-slate-100 flex justify-around text-center">
-                <div><p className="font-black text-slate-300 uppercase text-[9px] mb-6">مهر و امضای فروشگاه</p><div className="w-24 md:w-32 h-24 md:h-32 border-4 border-slate-50 rounded-full mx-auto opacity-10"></div></div>
-                <div><p className="font-black text-slate-300 uppercase text-[9px] mb-6">امضای خریدار</p><div className="w-24 md:w-32 h-1 bg-slate-100 mt-12 md:mt-16 opacity-10"></div></div>
              </div>
           </div>
         </div>
