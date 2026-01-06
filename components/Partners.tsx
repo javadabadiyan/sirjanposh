@@ -34,6 +34,16 @@ const Partners: React.FC<PartnersProps> = ({ data, setData, currentUser }) => {
   const getPartnerTotalInvestment = (partner: Partner) => partner.investments.reduce((sum, inv) => sum + inv.amount, 0);
   const totalInvestment = data.partners.reduce((acc, p) => acc + getPartnerTotalInvestment(p), 0);
 
+  // زمانی که رکورد برای ویرایش انتخاب می‌شود، فیلدها پر شوند
+  useEffect(() => {
+    if (editingInvestmentRecord) {
+      setEditInvForm({
+        amount: editingInvestmentRecord.record.amount.toString(),
+        date: editingInvestmentRecord.record.date
+      });
+    }
+  }, [editingInvestmentRecord]);
+
   const calculateProfitForPeriod = (period: string) => {
     let totalProfit = 0;
     const engPeriod = toEnglishDigits(period);
@@ -154,7 +164,27 @@ const Partners: React.FC<PartnersProps> = ({ data, setData, currentUser }) => {
 
     setData({ ...data, partners: updatedPartners });
     setEditingInvestmentRecord(null);
-    setManageInvestmentsPartner(null);
+    // بروزرسانی رفرنس شریک در مودال مدیریت سوابق
+    const updatedPartner = updatedPartners.find(p => p.id === editingInvestmentRecord.partnerId);
+    if (updatedPartner) setManageInvestmentsPartner(updatedPartner);
+  };
+
+  const deleteInvestmentRecord = (partnerId: string, recordId: string) => {
+    if (!confirm('آیا از حذف این رکورد سرمایه‌گذاری اطمینان دارید؟')) return;
+
+    const updatedPartners = data.partners.map(p => {
+      if (p.id === partnerId) {
+        return {
+          ...p,
+          investments: p.investments.filter(inv => inv.id !== recordId)
+        };
+      }
+      return p;
+    });
+
+    setData({ ...data, partners: updatedPartners });
+    const updatedPartner = updatedPartners.find(p => p.id === partnerId);
+    if (updatedPartner) setManageInvestmentsPartner(updatedPartner);
   };
 
   const savePaymentEdit = (e: React.FormEvent) => {
@@ -222,7 +252,7 @@ const Partners: React.FC<PartnersProps> = ({ data, setData, currentUser }) => {
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                   <button onClick={() => { setInvForm({amount: '', date: getCurrentJalaliDate()}); setShowInvestmentModal(p); }} className="bg-emerald-50 text-emerald-600 py-3 rounded-xl font-black text-[10px] shadow-sm hover:bg-emerald-600 hover:text-white transition-all min-h-[44px]">+ واریز سرمایه</button>
                   <button onClick={() => { setEditingPartner(p); setPartnerForm({name: p.name, initialAmount: '', initialDate: p.date}); setShowPartnerModal(true); }} className="bg-blue-50 text-blue-600 py-3 rounded-xl font-black text-[10px] shadow-sm hover:bg-blue-600 hover:text-white transition-all min-h-[44px]">ویرایش</button>
-                  <button onClick={() => { if(confirm('حذف شود؟')) setData({...data, partners: data.partners.filter(i=>i.id!==p.id)}) }} className="bg-red-50 text-red-500 py-3 rounded-xl font-black text-[10px] hover:bg-red-600 hover:text-white transition-all min-h-[44px]">حذف</button>
+                  <button onClick={() => { if(confirm('آیا از حذف کامل حساب این شریک و تمامی سوابق او اطمینان دارید؟')) setData({...data, partners: data.partners.filter(i=>i.id!==p.id)}) }} className="bg-red-50 text-red-500 py-3 rounded-xl font-black text-[10px] hover:bg-red-600 hover:text-white transition-all min-h-[44px]">حذف حساب</button>
                 </div>
               </div>
             ))}
@@ -283,7 +313,7 @@ const Partners: React.FC<PartnersProps> = ({ data, setData, currentUser }) => {
                   <td className="p-5 text-center">
                     <div className="flex justify-center gap-2">
                        <button onClick={() => { setPaymentEditForm({ amount: pay.amount.toString(), period: pay.period, date: pay.date }); setShowPaymentEditModal(pay); }} className="w-8 h-8 flex items-center justify-center bg-blue-50 text-blue-500 rounded-lg">📝</button>
-                       <button onClick={() => { if(confirm('حذف؟')) setData({...data, payments: data.payments.filter(i=>i.id!==pay.id)}) }} className="w-8 h-8 flex items-center justify-center bg-red-50 text-red-400 rounded-lg">🗑️</button>
+                       <button onClick={() => { if(confirm('آیا از حذف این رکورد پرداخت سود اطمینان دارید؟')) setData({...data, payments: data.payments.filter(i=>i.id!==pay.id)}) }} className="w-8 h-8 flex items-center justify-center bg-red-50 text-red-400 rounded-lg">🗑️</button>
                     </div>
                   </td>
                 </tr>
@@ -306,8 +336,8 @@ const Partners: React.FC<PartnersProps> = ({ data, setData, currentUser }) => {
                 {showPartnerModal ? 'اطلاعات شریک' : 
                  showInvestmentModal ? 'افزایش سرمایه' : 
                  showPaymentEditModal ? 'ویرایش تسویه' : 
-                 manageInvestmentsPartner ? `سوابق: ${manageInvestmentsPartner.name}` :
-                 editingInvestmentRecord ? 'ویرایش واریز' : ''}
+                 manageInvestmentsPartner && !editingInvestmentRecord ? `سوابق: ${manageInvestmentsPartner.name}` :
+                 editingInvestmentRecord ? 'ویرایش واریز سرمایه' : ''}
               </h3>
               <button onClick={() => { setShowPartnerModal(false); setShowInvestmentModal(null); setShowPaymentEditModal(null); setManageInvestmentsPartner(null); setEditingInvestmentRecord(null); setEditingPartner(null); }} className="w-10 h-10 flex items-center justify-center bg-white/10 rounded-xl text-3xl">&times;</button>
             </div>
@@ -336,16 +366,51 @@ const Partners: React.FC<PartnersProps> = ({ data, setData, currentUser }) => {
 
               {manageInvestmentsPartner && !editingInvestmentRecord && (
                 <div className="space-y-4">
-                  {manageInvestmentsPartner.investments.map((inv) => (
-                    <div key={inv.id} className="flex justify-between items-center p-4 bg-white border border-slate-100 rounded-2xl shadow-sm">
-                      <div>
-                        <p className="font-black text-sm text-slate-800">{formatCurrency(inv.amount)}</p>
-                        <p className="text-[9px] font-bold text-slate-400">تاریخ: {toPersianNumbers(inv.date)} | ثبت: {inv.registeredBy || 'نامشخص'}</p>
+                  {manageInvestmentsPartner.investments.length === 0 ? (
+                    <div className="text-center py-10 opacity-30 font-black">رکوردی یافت نشد</div>
+                  ) : (
+                    manageInvestmentsPartner.investments.map((inv) => (
+                      <div key={inv.id} className="flex justify-between items-center p-5 bg-white border border-slate-100 rounded-[1.8rem] shadow-sm">
+                        <div className="space-y-1">
+                          <p className="font-black text-base text-indigo-950">{formatCurrency(inv.amount)}</p>
+                          <div className="flex items-center gap-2 text-[9px] font-bold text-slate-400">
+                            <span>📅 {toPersianNumbers(inv.date)}</span>
+                            <span>👤 {inv.registeredBy || 'ناشناس'}</span>
+                          </div>
+                        </div>
+                        <div className="flex gap-2">
+                          <button onClick={() => setEditingInvestmentRecord({ partnerId: manageInvestmentsPartner.id, record: inv })} className="bg-orange-50 text-orange-600 px-4 py-2.5 rounded-xl text-[10px] font-black hover:bg-orange-600 hover:text-white transition-all">ویرایش</button>
+                          <button onClick={() => deleteInvestmentRecord(manageInvestmentsPartner.id, inv.id)} className="bg-red-50 text-red-500 px-3 py-2.5 rounded-xl text-[10px] font-black hover:bg-red-600 hover:text-white transition-all">🗑️</button>
+                        </div>
                       </div>
-                      <button onClick={() => setEditingInvestmentRecord({ partnerId: manageInvestmentsPartner.id, record: inv })} className="bg-indigo-50 text-indigo-600 px-3 py-2 rounded-xl text-[9px] font-black">ویرایش</button>
-                    </div>
-                  ))}
+                    ))
+                  )}
                 </div>
+              )}
+
+              {editingInvestmentRecord && (
+                <form onSubmit={saveEditedInvestment} className="space-y-6 animate-fadeIn">
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-black text-slate-500 uppercase">اصلاح مبلغ واریزی</label>
+                    <input required className="w-full p-5 bg-white border-2 border-slate-100 rounded-2xl font-black text-center text-2xl text-orange-600" value={toPersianNumbers(formatWithCommas(editInvForm.amount))} onChange={e=>handleNumericChange(setEditInvForm, 'amount', e.target.value)} />
+                  </div>
+                  <DatePicker label="اصلاح تاریخ" value={editInvForm.date} onChange={val => setEditInvForm({...editInvForm, date: val})} accentColor="orange" />
+                  <div className="grid grid-cols-2 gap-3 mt-6">
+                    <button type="submit" className="bg-orange-600 text-white py-4 rounded-2xl font-black text-base shadow-xl active:scale-95">ذخیره تغییرات</button>
+                    <button type="button" onClick={() => setEditingInvestmentRecord(null)} className="bg-slate-100 text-slate-500 py-4 rounded-2xl font-black text-base">بازگشت</button>
+                  </div>
+                </form>
+              )}
+
+              {showPaymentEditModal && (
+                <form onSubmit={savePaymentEdit} className="space-y-6">
+                  <div className="space-y-1.5"><label className="text-[10px] font-black text-slate-500 uppercase">مبلغ سود اصلاحی</label><input required className="w-full p-5 bg-white border-2 border-slate-100 rounded-2xl font-black text-center text-2xl text-blue-600" value={toPersianNumbers(formatWithCommas(paymentEditForm.amount))} onChange={e=>handleNumericChange(setPaymentEditForm, 'amount', e.target.value)} /></div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1.5"><label className="text-[10px] font-black text-slate-500 uppercase">دوره (ماه/سال)</label><input required className="w-full p-4 bg-white border-2 border-slate-100 rounded-2xl font-black text-center" value={toPersianNumbers(paymentEditForm.period)} onChange={e=>setPaymentEditForm({...paymentEditForm, period: e.target.value})} /></div>
+                    <DatePicker label="تاریخ پرداخت" value={paymentEditForm.date} onChange={val => setPaymentEditForm({...paymentEditForm, date: val})} accentColor="blue" />
+                  </div>
+                  <button type="submit" className="w-full bg-blue-600 text-white py-5 rounded-2xl font-black text-lg shadow-xl active:scale-95 mt-4">بروزرسانی تسویه 🔄</button>
+                </form>
               )}
             </div>
           </div>
