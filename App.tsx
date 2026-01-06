@@ -92,8 +92,8 @@ const App: React.FC = () => {
   if (isLoading) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-slate-900 text-white text-center p-6">
-        <div className="text-7xl animate-bounce mb-6">👕</div>
-        <div className="text-xl font-black animate-pulse">در حال فراخوانی اطلاعات سیرجان پوش...</div>
+        <div className="text-6xl md:text-7xl animate-bounce mb-6">👕</div>
+        <div className="text-lg md:text-xl font-black animate-pulse px-4">در حال فراخوانی اطلاعات سیرجان پوش...</div>
       </div>
     );
   }
@@ -101,11 +101,11 @@ const App: React.FC = () => {
   if (errorMsg) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50 p-6" dir="rtl">
-        <div className="bg-white p-8 md:p-10 rounded-[3rem] shadow-2xl border border-red-100 max-w-lg w-full text-center">
+        <div className="bg-white p-6 md:p-10 rounded-[2.5rem] shadow-2xl border border-red-100 max-w-lg w-full text-center">
           <div className="text-5xl mb-4">⚠️</div>
-          <h2 className="text-2xl font-black text-slate-800 mb-4">خطا در اتصال به دیتابیس</h2>
-          <p className="text-red-600 font-bold mb-6 text-sm">{errorMsg}</p>
-          <button onClick={loadData} className="w-full bg-indigo-600 text-white py-4 rounded-2xl font-black shadow-xl">تلاش دوباره 🔄</button>
+          <h2 className="text-xl md:text-2xl font-black text-slate-800 mb-4">خطا در اتصال به دیتابیس</h2>
+          <p className="text-red-600 font-bold mb-6 text-xs md:text-sm leading-relaxed">{errorMsg}</p>
+          <button onClick={loadData} className="w-full bg-indigo-600 text-white py-4 rounded-2xl font-black shadow-xl active:scale-95 transition-all">تلاش دوباره 🔄</button>
         </div>
       </div>
     );
@@ -125,16 +125,16 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className="flex min-h-screen bg-[#f8fafc] text-slate-800 relative" dir="rtl">
+    <div className="flex min-h-screen bg-[#f8fafc] text-slate-800 relative w-full overflow-x-hidden" dir="rtl">
       {isSaving && (
         <div className="saving-loader">
-          <span className="w-3 h-3 bg-indigo-500 rounded-full animate-ping"></span>
+          <span className="w-2.5 h-2.5 bg-indigo-500 rounded-full animate-ping"></span>
           در حال همگام‌سازی...
         </div>
       )}
 
-      {/* منوی کناری دسکتاپ */}
-      <aside className="hidden lg:flex flex-col w-80 bg-slate-900 text-white fixed h-full shadow-2xl z-40">
+      {/* منوی کناری دسکتاپ (مخفی در موبایل) */}
+      <aside className="hidden lg:flex flex-col w-80 bg-slate-900 text-white fixed h-full shadow-2xl z-40 transition-all duration-300">
         <Sidebar 
           activeTab={activeTab} 
           setActiveTab={handleTabChange} 
@@ -143,15 +143,13 @@ const App: React.FC = () => {
         />
       </aside>
 
-      {/* منوی متحرک موبایل (Drawer) */}
+      {/* دراور موبایل (نمایش فقط در موبایل و تبلت) */}
       <div className={`fixed inset-0 z-[100] lg:hidden transition-all duration-500 ${isMobileMenuOpen ? 'visible' : 'invisible'}`}>
-        {/* Backdrop */}
         <div 
           className={`absolute inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity duration-500 ${isMobileMenuOpen ? 'opacity-100' : 'opacity-0'}`}
           onClick={() => setIsMobileMenuOpen(false)}
         />
-        {/* Drawer Content */}
-        <aside className={`absolute top-0 right-0 h-full w-80 bg-slate-900 shadow-2xl transition-transform duration-500 ease-out ${isMobileMenuOpen ? 'translate-x-0' : 'translate-x-full'}`}>
+        <aside className={`absolute top-0 right-0 h-full w-[80%] max-w-[320px] bg-slate-900 shadow-2xl transition-transform duration-500 ease-out ${isMobileMenuOpen ? 'translate-x-0' : 'translate-x-full'}`}>
           <Sidebar 
             activeTab={activeTab} 
             setActiveTab={handleTabChange} 
@@ -161,33 +159,35 @@ const App: React.FC = () => {
         </aside>
       </div>
 
-      <div className="flex-1 lg:mr-80 min-h-screen flex flex-col">
-        {/* هدر موبایل اصلاح شده */}
-        <header className="lg:hidden bg-white border-b px-6 py-5 flex justify-between items-center sticky top-0 z-30 shadow-sm backdrop-blur-md bg-white/90">
-          <div className="flex items-center gap-3">
+      <div className="flex-1 lg:mr-80 min-h-screen flex flex-col w-full overflow-x-hidden">
+        {/* هدر موبایل (نمایش فقط در موبایل و تبلت) */}
+        <header className="lg:hidden bg-white border-b px-4 py-4 flex justify-between items-center sticky top-0 z-30 shadow-sm backdrop-blur-md bg-white/90 safe-padding">
+          <div className="flex items-center gap-2">
             <button 
               onClick={() => setIsMobileMenuOpen(true)}
-              className="w-12 h-12 flex items-center justify-center bg-slate-50 rounded-2xl text-xl shadow-inner border border-slate-100"
+              className="w-10 h-10 flex items-center justify-center bg-slate-50 rounded-xl text-xl shadow-inner border border-slate-100 active:scale-90 transition-all"
             >
               ☰
             </button>
             <div className="flex items-center gap-2">
-              <div className="bg-indigo-600 w-8 h-8 rounded-lg flex items-center justify-center text-xs text-white">👕</div>
-              <h1 className="text-lg font-black tracking-tight">سیرجان پوش</h1>
+              <div className="bg-indigo-600 w-7 h-7 rounded-lg flex items-center justify-center text-[10px] text-white">👕</div>
+              <h1 className="text-sm font-black tracking-tight">سیرجان پوش</h1>
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <span className="text-[10px] font-black text-slate-400 bg-slate-50 px-3 py-1.5 rounded-full">{currentUser.username}</span>
+            <span className="text-[10px] font-black text-slate-400 bg-slate-50 px-3 py-1.5 rounded-full max-w-[100px] truncate">{currentUser.username}</span>
           </div>
         </header>
 
-        <main className="p-4 md:p-8 lg:p-10 overflow-x-hidden">
-          {activeTab === 'dashboard' && <Dashboard data={data} />}
-          {activeTab === 'inventory' && canAccess('inventory') && <Inventory data={data} setData={updateData} currentUser={currentUser} />}
-          {activeTab === 'partners' && canAccess('partners') && <Partners data={data} setData={updateData} />}
-          {activeTab === 'invoices' && canAccess('invoices') && <Invoices data={data} setData={updateData} />}
-          {activeTab === 'users' && canAccess('users') && <Users data={data} setData={updateData} />}
-          {activeTab === 'backup' && canAccess('backup') && <BackupRestore data={data} setData={updateData} />}
+        <main className="flex-1 p-3 md:p-6 lg:p-10 w-full overflow-x-hidden">
+          <div className="max-w-[1600px] mx-auto">
+            {activeTab === 'dashboard' && <Dashboard data={data} />}
+            {activeTab === 'inventory' && canAccess('inventory') && <Inventory data={data} setData={updateData} currentUser={currentUser} />}
+            {activeTab === 'partners' && canAccess('partners') && <Partners data={data} setData={updateData} />}
+            {activeTab === 'invoices' && canAccess('invoices') && <Invoices data={data} setData={updateData} />}
+            {activeTab === 'users' && canAccess('users') && <Users data={data} setData={updateData} />}
+            {activeTab === 'backup' && canAccess('backup') && <BackupRestore data={data} setData={updateData} />}
+          </div>
         </main>
       </div>
     </div>
