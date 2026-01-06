@@ -17,12 +17,11 @@ const INITIAL_DATA = {
 };
 
 export default async function handler(request: Request) {
-  // در محیط Edge مستقیماً از متغیرهای تزریق شده توسط Vercel استفاده می‌کنیم
+  // دسترسی ایمن به متغیرهای محیطی در Vercel Edge
   const databaseUrl = 
-    process.env.DATABASE_URL || 
-    process.env.POSTGRES_URL || 
-    process.env.STORAGE_DATABASE_URL ||
-    process.env.STORAGE_URL;
+    (process.env as any).DATABASE_URL || 
+    (process.env as any).POSTGRES_URL || 
+    (process.env as any).STORAGE_DATABASE_URL;
   
   const headers = new Headers({
     'Content-Type': 'application/json; charset=utf-8',
@@ -32,15 +31,15 @@ export default async function handler(request: Request) {
 
   if (!databaseUrl) {
     return new Response(JSON.stringify({ 
-      error: 'اتصال به دیتابیس برقرار نیست',
-      details: 'لطفاً اطمینان حاصل کنید که دیتابیس Neon در پنل Vercel به پروژه متصل شده است.' 
+      error: 'اتصال دیتابیس یافت نشد',
+      details: 'DATABASE_URL is missing' 
     }), { status: 500, headers });
   }
 
   const sql = neon(databaseUrl);
 
   try {
-    // اطمینان از وجود جدول
+    // ایجاد جدول در صورت عدم وجود (تضمین نمایش صحیح متون فارسی با JSONB)
     await sql`CREATE TABLE IF NOT EXISTS app_state (id INT PRIMARY KEY, content JSONB NOT NULL, updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP)`;
 
     if (request.method === 'GET') {
@@ -50,13 +49,7 @@ export default async function handler(request: Request) {
     }
 
     if (request.method === 'POST') {
-      let body;
-      try {
-        body = await request.json();
-      } catch (e) {
-        return new Response(JSON.stringify({ error: 'فرمت داده‌های ارسالی نامعتبر است' }), { status: 400, headers });
-      }
-
+      const body = await request.json();
       await sql`
         INSERT INTO app_state (id, content, updated_at)
         VALUES (1, ${body}, CURRENT_TIMESTAMP)
@@ -68,9 +61,9 @@ export default async function handler(request: Request) {
 
     return new Response(JSON.stringify({ error: 'Method not allowed' }), { status: 405, headers });
   } catch (error: any) {
-    console.error('Database Operation Error:', error);
+    console.error('API Error:', error);
     return new Response(JSON.stringify({ 
-      error: 'خطای عملیاتی در دیتابیس', 
+      error: 'خطای سرور', 
       details: error?.message || String(error) 
     }), { status: 500, headers });
   }
