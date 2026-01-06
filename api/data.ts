@@ -17,27 +17,33 @@ const INITIAL_DATA = {
 };
 
 export default async function handler(request: Request) {
-  const databaseUrl = process.env.DATABASE_URL;
+  // شناسایی هوشمند دیتابیس از میان تمام متغیرهای احتمالی Vercel
+  const databaseUrl = 
+    process.env.DATABASE_URL || 
+    process.env.POSTGRES_URL || 
+    process.env.STORAGE_URL || 
+    process.env.STORAGE_DATABASE_URL;
+  
   const headers = new Headers({
     'Content-Type': 'application/json; charset=utf-8',
-    'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
-    'Pragma': 'no-cache',
-    'Expires': '0',
+    'Cache-Control': 'no-store, no-cache, must-revalidate'
   });
 
   if (!databaseUrl) {
-    return new Response(JSON.stringify({ error: 'DATABASE_URL is missing' }), { status: 500, headers });
+    return new Response(JSON.stringify({ 
+      error: 'دیتابیس شناسایی نشد', 
+      message: 'لطفاً در پنل Vercel بررسی کنید که متغیرهای محیطی دیتابیس وجود داشته باشند.' 
+    }), { status: 500, headers });
   }
 
   const sql = neon(databaseUrl);
 
   try {
-    // اطمینان از وجود جدول بدون تداخل با خروجی اصلی
+    // ایجاد جدول در صورتی که دیتابیس تازه ساخته شده باشد
     await sql`CREATE TABLE IF NOT EXISTS app_state (id INT PRIMARY KEY, content JSONB NOT NULL, updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP)`;
 
     if (request.method === 'GET') {
       const rows = await sql`SELECT content FROM app_state WHERE id = 1 LIMIT 1`;
-      
       const responseData = (rows && rows.length > 0) ? rows[0].content : INITIAL_DATA;
       return new Response(JSON.stringify(responseData), { status: 200, headers });
     }
@@ -47,7 +53,7 @@ export default async function handler(request: Request) {
       try {
         body = await request.json();
       } catch (e) {
-        return new Response(JSON.stringify({ error: 'Invalid JSON body' }), { status: 400, headers });
+        return new Response(JSON.stringify({ error: 'فرمت داده نامعتبر' }), { status: 400, headers });
       }
 
       await sql`
@@ -60,9 +66,12 @@ export default async function handler(request: Request) {
       return new Response(JSON.stringify({ success: true }), { status: 200, headers });
     }
 
-    return new Response(JSON.stringify({ error: 'Method not allowed' }), { status: 405, headers });
+    return new Response(JSON.stringify({ error: 'Method Not Allowed' }), { status: 405, headers });
   } catch (error) {
-    console.error('API Error:', error);
-    return new Response(JSON.stringify({ error: 'Internal Server Error', message: String(error) }), { status: 500, headers });
+    console.error('Database Error:', error);
+    return new Response(JSON.stringify({ 
+      error: 'خطای دیتابیس', 
+      details: String(error) 
+    }), { status: 500, headers });
   }
 }
