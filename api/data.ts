@@ -16,12 +16,13 @@ const INITIAL_DATA = {
   users: [{ id: '1', username: 'admin', password: '5221157', role: 'admin', permissions: ['dashboard', 'inventory', 'partners', 'invoices', 'users', 'backup'] }]
 };
 
-export default async function (request: Request) {
+export default async function handler(request: Request) {
+  // این بخش تمام متغیرهایی که Vercel ممکن است برای دیتابیس Neon بسازد را چک می‌کند
   const databaseUrl = 
     process.env.DATABASE_URL || 
     process.env.POSTGRES_URL || 
-    process.env.STORAGE_URL || 
-    process.env.STORAGE_DATABASE_URL;
+    process.env.STORAGE_DATABASE_URL || 
+    process.env.STORAGE_URL;
   
   const headers = new Headers({
     'Content-Type': 'application/json; charset=utf-8',
@@ -31,13 +32,15 @@ export default async function (request: Request) {
 
   if (!databaseUrl) {
     return new Response(JSON.stringify({ 
-      error: 'Database connection string missing' 
+      error: 'اتصال به دیتابیس برقرار نیست',
+      details: 'لطفاً در پنل Vercel یک بار Redeploy کنید تا تنظیمات دیتابیس اعمال شود.' 
     }), { status: 500, headers });
   }
 
   const sql = neon(databaseUrl);
 
   try {
+    // ایجاد خودکار جدول تنظیمات در صورت عدم وجود
     await sql`CREATE TABLE IF NOT EXISTS app_state (id INT PRIMARY KEY, content JSONB NOT NULL, updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP)`;
 
     if (request.method === 'GET') {
@@ -59,7 +62,10 @@ export default async function (request: Request) {
 
     return new Response(JSON.stringify({ error: 'Method not allowed' }), { status: 405, headers });
   } catch (error) {
-    console.error('API Error:', error);
-    return new Response(JSON.stringify({ error: 'Database error', details: String(error) }), { status: 500, headers });
+    console.error('Database Error:', error);
+    return new Response(JSON.stringify({ 
+      error: 'خطای عملیاتی در دیتابیس', 
+      details: String(error) 
+    }), { status: 500, headers });
   }
 }
