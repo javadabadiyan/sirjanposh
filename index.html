@@ -21,10 +21,8 @@
             padding: 0;
             overflow-x: hidden;
             -webkit-font-smoothing: antialiased;
-            /* جلوگیری از پرش صفحه در موبایل */
             overscroll-behavior-y: contain;
         }
-        /* بهینه‌سازی برای گوشی‌های دارای بریدگی (Notch) */
         .safe-padding {
             padding-top: env(safe-area-inset-top);
             padding-bottom: env(safe-area-inset-bottom);
@@ -55,16 +53,62 @@
                 width: auto;
             }
         }
-        /* سفارشی‌سازی اسکرول‌بار برای ظرافت در موبایل */
         ::-webkit-scrollbar { width: 3px; height: 3px; }
         ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
         
-        /* انیمیشن‌ها */
         .animate-fadeIn { animation: fadeIn 0.4s ease-out; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
         
-        /* جلوگیری از زوم شدن ورودی‌ها در آیفون */
         input, select, textarea { font-size: 16px !important; }
+
+        /* Print Specific Styles */
+        @media print {
+            body * {
+                visibility: hidden;
+            }
+            .no-print {
+                display: none !important;
+            }
+            #printable-invoice, #printable-invoice * {
+                visibility: visible;
+            }
+            #printable-invoice {
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 210mm;
+                height: 297mm;
+                margin: 0;
+                padding: 15mm;
+                box-shadow: none;
+                border: none;
+                background: white;
+            }
+            @page {
+                size: A4;
+                margin: 0;
+            }
+        }
+
+        .invoice-preview-container {
+            width: 210mm;
+            min-height: 297mm;
+            background: white;
+            margin: 0 auto;
+            box-shadow: 0 0 50px rgba(0,0,0,0.1);
+            position: relative;
+            transform-origin: top center;
+        }
+        
+        @media (max-width: 210mm) {
+            .invoice-preview-wrapper {
+                padding: 1rem;
+                overflow-x: auto;
+            }
+            .invoice-preview-container {
+                transform: scale(calc(100vw / 230mm));
+            }
+        }
     </style>
     <script type="importmap">
 {
