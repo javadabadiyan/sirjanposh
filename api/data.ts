@@ -17,7 +17,6 @@ const INITIAL_DATA = {
 };
 
 export default async function handler(request: Request) {
-  // اولویت با متغیر NEON_DB_URL است چون DATABASE_URL در ورسل قفل است
   const databaseUrl = process.env.NEON_DB_URL || process.env.DATABASE_URL;
   
   const headers = new Headers({
@@ -27,22 +26,20 @@ export default async function handler(request: Request) {
     'Access-Control-Allow-Headers': 'Content-Type',
   });
 
-  // پاسخ به درخواست‌های پیش‌پرواز (CORS)
   if (request.method === 'OPTIONS') {
     return new Response(null, { status: 204, headers });
   }
 
   if (!databaseUrl) {
     return new Response(JSON.stringify({ 
-      error: 'اتصال برقرار نشد!', 
-      details: 'متغیر NEON_DB_URL یافت نشد. لطفاً در Vercel اضافه کنید.' 
+      error: 'پیکربندی ناقص', 
+      details: 'آدرس دیتابیس (NEON_DB_URL) در تنظیمات Vercel یافت نشد.' 
     }), { status: 500, headers });
   }
 
   try {
     const sql = neon(databaseUrl);
     
-    // اطمینان از وجود جدول
     await sql`CREATE TABLE IF NOT EXISTS app_state (
       id INT PRIMARY KEY, 
       content JSONB NOT NULL, 
@@ -66,12 +63,12 @@ export default async function handler(request: Request) {
       return new Response(JSON.stringify({ success: true }), { status: 200, headers });
     }
 
-    return new Response(JSON.stringify({ error: 'متد نامعتبر است' }), { status: 405, headers });
+    return new Response(JSON.stringify({ error: 'Method not allowed' }), { status: 405, headers });
   } catch (error: any) {
-    console.error('Neon DB Error:', error);
+    console.error('Database Error:', error);
     return new Response(JSON.stringify({ 
-      error: 'خطای دیتابیس', 
-      details: error.message || 'خطای ناشناخته در ارتباط با سرور Neon'
+      error: 'خطای سرور ابری', 
+      details: error.message || 'ارتباط با دیتابیس Neon برقرار نشد.'
     }), { status: 500, headers });
   }
 }
