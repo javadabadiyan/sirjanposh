@@ -9,7 +9,7 @@ interface UsersProps {
 }
 
 const ALL_PERMISSIONS = [
-  { id: 'dashboard', label: 'داشبورد وضعیت' },
+  { id: 'dashboard', label: 'داشبورد' },
   { id: 'inventory', label: 'مدیریت کالاها' },
   { id: 'partners', label: 'شرکا و سرمایه' },
   { id: 'invoices', label: 'صدور فاکتور' },
@@ -49,13 +49,11 @@ const Users: React.FC<UsersProps> = ({ data, setData }) => {
 
   const saveUser = (e: React.FormEvent) => {
     e.preventDefault();
-    
-    // پاکسازی و نرمال‌سازی قبل از ذخیره
     const normalizedUsername = toEnglishDigits(formData.username).trim();
     const normalizedPassword = toEnglishDigits(formData.password).trim();
 
     if (normalizedUsername === 'admin' && normalizedPassword !== '5221157' && !editingUser) {
-      alert('نام کاربری admin فقط با رمز عبور تعیین شده توسط مدیریت قابل تعریف است.');
+      alert('نام کاربری admin فقط با رمز عبور سیستمی قابل تعریف است.');
       return;
     }
 
@@ -68,77 +66,68 @@ const Users: React.FC<UsersProps> = ({ data, setData }) => {
     };
 
     if (editingUser) {
-      setData({
-        ...data,
-        users: data.users.map(u => u.id === editingUser.id ? userData : u)
-      });
+      setData({ ...data, users: data.users.map(u => u.id === editingUser.id ? userData : u) });
     } else {
-      // جلوگیری از نام کاربری تکراری
       if (data.users.some(u => u.username.toLowerCase() === normalizedUsername.toLowerCase())) {
-        alert('این نام کاربری قبلاً در سیستم ثبت شده است.');
+        alert('این نام کاربری قبلاً ثبت شده است.');
         return;
       }
-      setData({
-        ...data,
-        users: [...data.users, userData]
-      });
+      setData({ ...data, users: [...data.users, userData] });
     }
 
     setShowModal(false);
     setEditingUser(null);
-    setFormData({ username: '', password: '', role: 'staff', permissions: ['dashboard'] });
   };
 
   const deleteUser = (id: string) => {
     const user = data.users.find(u => u.id === id);
     if (user?.username === 'admin') {
-      alert('کاربر اصلی سیستم (مدیر ارشد) قابل حذف نیست.');
+      alert('مدیر ارشد قابل حذف نیست.');
       return;
     }
     if (confirm('آیا از حذف این کاربر اطمینان دارید؟')) {
-      setData({
-        ...data,
-        users: data.users.filter(u => u.id !== id)
-      });
+      setData({ ...data, users: data.users.filter(u => u.id !== id) });
     }
   };
 
   return (
-    <div className="space-y-6 animate-fadeIn">
-      <div className="flex justify-between items-center bg-white p-6 rounded-2xl border shadow-sm">
-        <div>
-          <h2 className="text-xl font-black text-slate-800">مدیریت کاربران و دسترسی‌ها</h2>
-          <p className="text-xs text-gray-400 mt-1">تعریف سطوح دسترسی مختلف برای کارکنان فروشگاه</p>
+    <div className="space-y-6 animate-fadeIn pb-16 md:pb-10">
+      <div className="flex flex-col md:flex-row justify-between items-center bg-white p-6 rounded-[2rem] border shadow-sm gap-4">
+        <div className="text-center md:text-right w-full md:w-auto">
+          <h2 className="text-xl font-black text-slate-800">👥 کاربران و دسترسی‌ها</h2>
+          <p className="text-[10px] text-gray-400 mt-1 uppercase tracking-widest font-black">Staff Access Control</p>
         </div>
         <button 
           onClick={() => { setEditingUser(null); setFormData({username: '', password: '', role: 'staff', permissions: ['dashboard']}); setShowModal(true); }}
-          className="bg-indigo-600 text-white px-8 py-3 rounded-xl hover:bg-indigo-700 font-bold transition shadow-lg shadow-indigo-100"
+          className="w-full md:w-auto bg-indigo-600 text-white px-8 py-4 rounded-2xl hover:bg-indigo-700 font-black shadow-lg active:scale-95 transition-all min-h-[56px]"
         >+ کاربر جدید</button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 md:gap-6">
         {data.users.map(user => (
-          <div key={user.id} className="bg-white p-6 rounded-[2rem] shadow-sm border relative hover:shadow-md transition duration-300">
-            <div className="flex items-center space-x-reverse space-x-4 mb-4">
-              <div className={`w-14 h-14 rounded-2xl flex items-center justify-center text-3xl ${user.role === 'admin' ? 'bg-indigo-100 text-indigo-600' : 'bg-orange-100 text-orange-600'}`}>
+          <div key={user.id} className="bg-white p-6 md:p-8 rounded-[2.5rem] shadow-sm border border-slate-100 relative hover:shadow-xl transition-all duration-300 group overflow-hidden">
+            <div className={`absolute top-0 right-0 w-2 h-full transition-all ${user.role === 'admin' ? 'bg-indigo-600' : 'bg-slate-200 group-hover:bg-indigo-300'}`}></div>
+            
+            <div className="flex items-center space-x-reverse space-x-4 mb-6">
+              <div className={`w-16 h-16 rounded-[1.5rem] flex items-center justify-center text-3xl shadow-inner ${user.role === 'admin' ? 'bg-indigo-50 text-indigo-600' : 'bg-slate-50 text-slate-400'}`}>
                 {user.role === 'admin' ? '👑' : '👤'}
               </div>
-              <div>
-                <p className="font-black text-xl text-gray-800">{user.username}</p>
-                <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider ${user.role === 'admin' ? 'bg-indigo-900 text-white' : 'bg-gray-100 text-gray-500'}`}>
-                  {user.role === 'admin' ? 'مدیر ارشد' : 'اپراتور سیستم'}
+              <div className="overflow-hidden">
+                <p className="font-black text-xl text-slate-800 truncate">{user.username}</p>
+                <span className={`text-[9px] px-2.5 py-1 rounded-full font-black uppercase tracking-wider ${user.role === 'admin' ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-500'}`}>
+                  {user.role === 'admin' ? 'مدیر سیستم' : 'اپراتور فروش'}
                 </span>
               </div>
             </div>
             
-            <div className="space-y-2 mb-6">
-              <p className="text-xs font-bold text-gray-400">دسترسی‌ها:</p>
-              <div className="flex flex-wrap gap-1">
+            <div className="space-y-3 mb-8 min-h-[60px]">
+              <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">مجوزها:</p>
+              <div className="flex flex-wrap gap-1.5">
                 {user.role === 'admin' ? (
-                  <span className="bg-green-50 text-green-700 text-[10px] px-2 py-1 rounded-lg border border-green-100 font-black">دسترسی کامل</span>
+                  <span className="bg-emerald-50 text-emerald-600 text-[10px] px-3 py-1 rounded-lg border border-emerald-100 font-black">دسترسی نامحدود</span>
                 ) : (
                   user.permissions?.map(pId => (
-                    <span key={pId} className="bg-blue-50 text-blue-600 text-[10px] px-2 py-1 rounded-lg border border-blue-100 font-bold">
+                    <span key={pId} className="bg-indigo-50 text-indigo-600 text-[10px] px-3 py-1 rounded-lg border border-indigo-100 font-black">
                       {ALL_PERMISSIONS.find(p => p.id === pId)?.label}
                     </span>
                   ))
@@ -146,10 +135,10 @@ const Users: React.FC<UsersProps> = ({ data, setData }) => {
               </div>
             </div>
 
-            <div className="pt-4 border-t flex justify-end space-x-reverse space-x-4">
-              <button onClick={() => handleEdit(user)} className="text-sm font-black text-blue-600 hover:underline">ویرایش</button>
+            <div className="flex gap-3 pt-4 border-t border-slate-50">
+              <button onClick={() => handleEdit(user)} className="flex-1 bg-blue-50 text-blue-600 py-3 rounded-xl font-black text-xs hover:bg-blue-600 hover:text-white transition-all min-h-[44px]">📝 ویرایش</button>
               {user.username !== 'admin' && (
-                <button onClick={() => deleteUser(user.id)} className="text-sm font-black text-red-500 hover:underline">حذف</button>
+                <button onClick={() => deleteUser(user.id)} className="flex-1 bg-red-50 text-red-500 py-3 rounded-xl font-black text-xs hover:bg-red-600 hover:text-white transition-all min-h-[44px]">🗑️ حذف</button>
               )}
             </div>
           </div>
@@ -157,60 +146,43 @@ const Users: React.FC<UsersProps> = ({ data, setData }) => {
       </div>
 
       {showModal && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-[100]">
-          <div className="bg-white rounded-[2.5rem] w-full max-w-lg shadow-2xl overflow-hidden animate-fadeIn">
-            <div className="p-8 bg-indigo-950 text-white flex justify-between items-center">
+        <div className="fixed inset-0 bg-slate-900/90 backdrop-blur-md flex items-center justify-center p-0 md:p-6 z-[2000] overflow-y-auto">
+          <div className="bg-white w-full h-full md:h-auto md:max-h-[95vh] md:max-w-lg md:rounded-[3rem] shadow-2xl flex flex-col overflow-hidden animate-slide-up relative">
+            <div className="p-6 md:p-8 bg-slate-900 text-white flex justify-between items-center shrink-0">
               <div>
-                <h3 className="text-2xl font-black">{editingUser ? 'ویرایش کاربر' : 'تعریف کاربر جدید'}</h3>
-                <p className="text-xs text-indigo-300 mt-1">نام کاربری و رمز عبور را به دقت وارد کنید</p>
+                <h3 className="text-xl md:text-2xl font-black">{editingUser ? 'ویرایش کاربر' : 'کاربر جدید'}</h3>
+                <p className="text-[10px] text-slate-400 font-black uppercase mt-1">User Account Setup</p>
               </div>
-              <button onClick={() => setShowModal(false)} className="text-3xl">&times;</button>
+              <button onClick={() => setShowModal(false)} className="w-12 h-12 flex items-center justify-center bg-white/10 rounded-2xl text-2xl hover:bg-red-500 transition-all shadow-sm">&times;</button>
             </div>
             
-            <form onSubmit={saveUser} className="p-8 space-y-6">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <label className="text-xs font-bold text-gray-500 mr-2">نام کاربری (انگلیسی/فارسی)</label>
-                  <input 
-                    required 
-                    className="w-full p-4 bg-gray-50 border-2 border-gray-100 rounded-2xl outline-none focus:border-indigo-500 font-bold text-center" 
-                    value={formData.username} 
-                    onChange={e => setFormData({...formData, username: e.target.value})} 
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-xs font-bold text-gray-500 mr-2">رمز عبور</label>
-                  <input 
-                    required 
-                    type="password" 
-                    className="w-full p-4 bg-gray-50 border-2 border-gray-100 rounded-2xl outline-none focus:border-indigo-500 font-bold text-center" 
-                    value={formData.password} 
-                    onChange={e => setFormData({...formData, password: e.target.value})} 
-                  />
-                </div>
+            <form onSubmit={saveUser} className="p-6 md:p-10 space-y-6 flex-1 overflow-y-auto bg-slate-50/30">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1.5"><label className="text-[10px] font-black text-slate-500 uppercase mr-2">نام کاربری</label><input required className="w-full p-4.5 bg-white border-2 border-slate-100 rounded-2xl outline-none focus:border-indigo-500 font-bold text-center text-lg shadow-sm" value={formData.username} onChange={e => setFormData({...formData, username: e.target.value})} /></div>
+                <div className="space-y-1.5"><label className="text-[10px] font-black text-slate-500 uppercase mr-2">رمز عبور</label><input required type="password" className="w-full p-4.5 bg-white border-2 border-slate-100 rounded-2xl outline-none focus:border-indigo-500 font-bold text-center text-lg shadow-sm" value={formData.password} onChange={e => setFormData({...formData, password: e.target.value})} /></div>
               </div>
 
-              <div className="space-y-1">
-                <label className="text-xs font-bold text-gray-500 mr-2">نقش کاربری</label>
-                <div className="grid grid-cols-2 gap-2">
-                  <button type="button" onClick={() => setFormData({...formData, role: 'staff'})} className={`py-4 rounded-2xl font-bold border-2 transition ${formData.role === 'staff' ? 'bg-indigo-50 border-indigo-500 text-indigo-700' : 'bg-white border-gray-100 text-gray-400'}`}>اپراتور</button>
-                  <button type="button" onClick={() => setFormData({...formData, role: 'admin'})} className={`py-4 rounded-2xl font-bold border-2 transition ${formData.role === 'admin' ? 'bg-indigo-50 border-indigo-500 text-indigo-700' : 'bg-white border-gray-100 text-gray-400'}`}>مدیر سیستم</button>
+              <div className="space-y-3">
+                <label className="text-[10px] font-black text-slate-500 uppercase mr-2">نقش سیستمی</label>
+                <div className="grid grid-cols-2 gap-3">
+                  <button type="button" onClick={() => setFormData({...formData, role: 'staff'})} className={`py-4 rounded-2xl font-black border-2 transition-all min-h-[52px] ${formData.role === 'staff' ? 'bg-indigo-600 border-indigo-600 text-white shadow-lg' : 'bg-white border-slate-200 text-slate-400 hover:border-indigo-300'}`}>فروشنده</button>
+                  <button type="button" onClick={() => setFormData({...formData, role: 'admin'})} className={`py-4 rounded-2xl font-black border-2 transition-all min-h-[52px] ${formData.role === 'admin' ? 'bg-indigo-600 border-indigo-600 text-white shadow-lg' : 'bg-white border-slate-200 text-slate-400 hover:border-indigo-300'}`}>مدیر کل</button>
                 </div>
               </div>
 
               {formData.role === 'staff' && (
-                <div className="space-y-3 bg-gray-50 p-6 rounded-3xl border border-gray-100">
-                  <label className="text-sm font-black text-gray-700 block mb-2">تعیین دسترسی‌ها:</label>
-                  <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-4 bg-white p-6 rounded-[2rem] border-2 border-slate-100 shadow-inner">
+                  <label className="text-[11px] font-black text-indigo-900 block mb-2">دسترسی‌های مجاز:</label>
+                  <div className="grid grid-cols-1 gap-2.5">
                     {ALL_PERMISSIONS.map(perm => (
-                      <label key={perm.id} className="flex items-center space-x-reverse space-x-3 cursor-pointer group">
+                      <label key={perm.id} className="flex items-center space-x-reverse space-x-4 cursor-pointer group bg-slate-50 p-3.5 rounded-xl border border-transparent hover:border-indigo-200 transition-all">
                         <div 
                           onClick={() => togglePermission(perm.id)}
-                          className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center transition ${formData.permissions.includes(perm.id) ? 'bg-indigo-600 border-indigo-600 text-white' : 'bg-white border-gray-300'}`}
+                          className={`w-7 h-7 rounded-lg border-2 flex items-center justify-center transition-all ${formData.permissions.includes(perm.id) ? 'bg-indigo-600 border-indigo-600 text-white' : 'bg-white border-slate-300'}`}
                         >
-                          {formData.permissions.includes(perm.id) && <span className="text-[10px]">✔</span>}
+                          {formData.permissions.includes(perm.id) && <span className="text-[11px]">✔</span>}
                         </div>
-                        <span className={`text-xs font-bold transition ${formData.permissions.includes(perm.id) ? 'text-indigo-900' : 'text-gray-400'}`}>
+                        <span className={`text-sm font-black transition-all ${formData.permissions.includes(perm.id) ? 'text-indigo-900' : 'text-slate-400'}`}>
                           {perm.label}
                         </span>
                       </label>
@@ -219,8 +191,8 @@ const Users: React.FC<UsersProps> = ({ data, setData }) => {
                 </div>
               )}
 
-              <button type="submit" className="w-full bg-indigo-600 text-white py-5 rounded-2xl font-black text-xl hover:bg-indigo-700 shadow-xl transition-all">
-                {editingUser ? 'ذخیره تغییرات' : 'ایجاد کاربر جدید'}
+              <button type="submit" className="w-full bg-indigo-600 text-white py-5 rounded-[1.5rem] font-black text-lg md:text-xl shadow-xl hover:bg-indigo-700 transition-all active:scale-95 min-h-[64px] mt-6">
+                {editingUser ? '✅ ذخیره نهایی' : '🚀 ایجاد حساب کاربری'}
               </button>
             </form>
           </div>
