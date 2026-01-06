@@ -55,33 +55,33 @@ const DatePicker: React.FC<DatePickerProps> = ({ value, onChange, label, classNa
 
   return (
     <div className={`relative ${className}`} ref={containerRef}>
-      {label && <label className="text-[10px] font-black text-slate-500 uppercase mr-2 mb-1.5 block">{label}</label>}
+      {label && <label className="text-[9px] font-black text-slate-500 uppercase mr-1.5 mb-1 block">{label}</label>}
       <div 
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full p-4 bg-white border-2 border-slate-100 rounded-2xl outline-none hover:border-indigo-300 transition-all font-black text-center cursor-pointer flex items-center justify-between shadow-sm min-h-[52px]"
+        className="w-full p-3 bg-white border-2 border-slate-100 rounded-xl outline-none hover:border-indigo-300 transition-all font-black text-center cursor-pointer flex items-center justify-between shadow-sm min-h-[48px]"
       >
-        <span className={`text-${accentColor}-600 text-sm`}>{toPersianNumbers(value)}</span>
-        <span className="opacity-30 text-base">📅</span>
+        <span className={`text-${accentColor}-600 text-xs`}>{toPersianNumbers(value)}</span>
+        <span className="opacity-30 text-sm">📅</span>
       </div>
 
       {isOpen && (
-        <div className="absolute top-full right-0 md:right-auto md:left-0 mt-2 w-64 bg-white rounded-[2rem] shadow-2xl border border-slate-100 z-[5000] p-4 animate-fadeIn">
-          <div className="flex justify-between items-center mb-4">
-            <button type="button" onClick={() => changeMonth(1)} className="w-7 h-7 flex items-center justify-center bg-slate-50 rounded-lg hover:bg-slate-100 transition-colors text-xs font-bold">{'<'}</button>
+        <div className="absolute top-full right-0 md:right-auto md:left-0 mt-1.5 w-52 bg-white rounded-[1.5rem] shadow-2xl border border-slate-100 z-[9999] p-3 animate-fadeIn">
+          <div className="flex justify-between items-center mb-3">
+            <button type="button" onClick={() => changeMonth(1)} className="w-6 h-6 flex items-center justify-center bg-slate-50 rounded-lg hover:bg-slate-100 transition-colors text-[10px] font-bold">{'<'}</button>
             <div className="text-center">
-              <p className="font-black text-slate-800 text-[13px]">{JALALI_MONTH_NAMES[viewDate.month - 1]}</p>
-              <p className="text-[9px] font-bold text-slate-400">{toPersianNumbers(viewDate.year)}</p>
+              <p className="font-black text-slate-800 text-[11px] leading-tight">{JALALI_MONTH_NAMES[viewDate.month - 1]}</p>
+              <p className="text-[8px] font-bold text-slate-400">{toPersianNumbers(viewDate.year)}</p>
             </div>
-            <button type="button" onClick={() => changeMonth(-1)} className="w-7 h-7 flex items-center justify-center bg-slate-50 rounded-lg hover:bg-slate-100 transition-colors text-xs font-bold">{'>'}</button>
+            <button type="button" onClick={() => changeMonth(-1)} className="w-6 h-6 flex items-center justify-center bg-slate-50 rounded-lg hover:bg-slate-100 transition-colors text-[10px] font-bold">{'>'}</button>
           </div>
 
-          <div className="grid grid-cols-7 gap-1 mb-2 border-b border-slate-50 pb-2">
+          <div className="grid grid-cols-7 gap-0.5 mb-1.5 border-b border-slate-50 pb-1">
             {['ش', 'ی', 'د', 'س', 'چ', 'پ', 'ج'].map(w => (
-              <div key={w} className="text-center text-[8px] font-black text-slate-300">{w}</div>
+              <div key={w} className="text-center text-[7px] font-black text-slate-300">{w}</div>
             ))}
           </div>
 
-          <div className="grid grid-cols-7 gap-1.5">
+          <div className="grid grid-cols-7 gap-1">
             {days.map(d => {
               const currentValParts = toEnglishDigits(value).split('/');
               const isSelected = parseInt(currentValParts[0]) === viewDate.year && 
@@ -93,9 +93,9 @@ const DatePicker: React.FC<DatePickerProps> = ({ value, onChange, label, classNa
                   key={d}
                   type="button"
                   onClick={() => handleSelectDay(d)}
-                  className={`w-7 h-7 flex items-center justify-center rounded-lg text-[11px] font-bold transition-all ${
+                  className={`w-6 h-6 flex items-center justify-center rounded-lg text-[10px] font-bold transition-all ${
                     isSelected 
-                    ? `bg-${accentColor}-600 text-white shadow-md scale-105` 
+                    ? `bg-${accentColor}-600 text-white shadow-sm` 
                     : 'hover:bg-slate-50 text-slate-600'
                   }`}
                 >
@@ -108,7 +108,7 @@ const DatePicker: React.FC<DatePickerProps> = ({ value, onChange, label, classNa
           <button 
             type="button"
             onClick={() => { onChange(getCurrentJalaliDate()); setIsOpen(false); }}
-            className={`w-full mt-4 py-2 bg-slate-50 text-slate-500 rounded-xl font-black text-[9px] hover:bg-${accentColor}-600 hover:text-white transition-all`}
+            className={`w-full mt-3 py-1.5 bg-slate-50 text-slate-500 rounded-lg font-black text-[8px] hover:bg-${accentColor}-600 hover:text-white transition-all`}
           >
             انتخاب امروز
           </button>
