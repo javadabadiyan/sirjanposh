@@ -63,12 +63,15 @@ const Inventory: React.FC<InventoryProps> = ({ data, setData, currentUser }) => 
   const exportToExcel = () => {
     const wsData = data.products.map(p => {
       const sold = getSoldCount(p.id);
+      const profitPerUnit = p.sellPrice - (p.buyPrice + p.shippingCost);
       return {
         'کد کالا': p.code,
         'نام کالا': p.name,
         'قیمت خرید (تومان)': formatWithCommas(p.buyPrice),
         'کرایه حمل (تومان)': formatWithCommas(p.shippingCost),
+        'قیمت تمام شده (تومان)': formatWithCommas(p.buyPrice + p.shippingCost),
         'درصد سود (%)': p.marginPercent,
+        'مبلغ سود واحد (تومان)': formatWithCommas(profitPerUnit),
         'قیمت فروش (تومان)': formatWithCommas(p.sellPrice),
         'موجودی فعلی': p.quantity,
         'تعداد فروخته شده': sold,
@@ -80,7 +83,7 @@ const Inventory: React.FC<InventoryProps> = ({ data, setData, currentUser }) => 
     const ws = XLSX.utils.json_to_sheet(wsData);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Inventory");
-    XLSX.writeFile(wb, `Inventory_SirjanPoosh_${getCurrentJalaliDate().replace(/\//g, '-')}.xlsx`);
+    XLSX.writeFile(wb, `Inventory_Detailed_SirjanPoosh_${getCurrentJalaliDate().replace(/\//g, '-')}.xlsx`);
   };
 
   const filtered = (data.products || []).filter(p => 
@@ -97,7 +100,7 @@ const Inventory: React.FC<InventoryProps> = ({ data, setData, currentUser }) => 
         </div>
         <div className="flex gap-2 h-[48px] md:h-auto">
           <button onClick={() => { setEditingProduct(null); setFormData({ code: '', name: '', buyPrice: '', shippingCost: '', marginPercent: '', quantity: '', date: getCurrentJalaliDate() }); setShowModal(true); }} className="flex-1 md:flex-none bg-indigo-600 text-white px-4 md:px-10 rounded-xl md:rounded-2xl font-black hover:bg-indigo-700 shadow-xl transition-all active:scale-95 text-xs md:text-base">+ کالا جدید</button>
-          <button onClick={exportToExcel} className="bg-green-600 text-white px-4 rounded-xl md:rounded-2xl font-black hover:bg-green-700 shadow-lg transition-all active:scale-95 flex items-center justify-center text-lg md:text-xl" title="خروجی اکسل">📊</button>
+          <button onClick={exportToExcel} className="bg-green-600 text-white px-4 rounded-xl md:rounded-2xl font-black hover:bg-green-700 shadow-lg transition-all active:scale-95 flex items-center justify-center text-lg md:text-xl" title="خروجی اکسل کامل">📊</button>
         </div>
       </div>
 
@@ -108,6 +111,7 @@ const Inventory: React.FC<InventoryProps> = ({ data, setData, currentUser }) => 
           const totalInventory = p.quantity + sold;
           const soldPercentage = totalInventory > 0 ? (sold / totalInventory) * 100 : 0;
           const isLowStock = p.quantity <= 3;
+          const unitProfit = p.sellPrice - (p.buyPrice + p.shippingCost);
 
           return (
             <div key={p.id} className="bg-white p-5 md:p-7 rounded-[1.8rem] md:rounded-[3rem] border border-slate-100 shadow-sm hover:shadow-xl transition-all relative overflow-hidden group">
@@ -139,21 +143,28 @@ const Inventory: React.FC<InventoryProps> = ({ data, setData, currentUser }) => 
                     <p className={`text-sm md:text-base font-black ${isLowStock ? 'text-red-600' : 'text-emerald-600'}`}>{toPersianNumbers(p.quantity)}</p>
                   </div>
                 </div>
-                
-                <div className="mt-3 space-y-1">
-                  <div className="w-full h-1.5 bg-slate-200 rounded-full overflow-hidden">
-                    <div 
-                      className={`h-full rounded-full transition-all duration-1000 ${soldPercentage > 80 ? 'bg-emerald-500' : 'bg-indigo-500'}`}
-                      style={{ width: `${soldPercentage}%` }}
-                    ></div>
-                  </div>
+              </div>
+
+              {/* بخش جدید: تفکیک قیمت و سود */}
+              <div className="space-y-2 mb-5 px-1 bg-indigo-50/30 p-3 rounded-2xl border border-indigo-100/50">
+                <div className="flex justify-between text-[10px] font-bold text-slate-500">
+                   <span>قیمت خرید:</span>
+                   <span>{formatCurrency(p.buyPrice)}</span>
+                </div>
+                <div className="flex justify-between text-[10px] font-bold text-slate-500">
+                   <span>کرایه حمل:</span>
+                   <span>{formatCurrency(p.shippingCost)}</span>
+                </div>
+                <div className="flex justify-between items-center pt-1 border-t border-indigo-100">
+                   <span className="text-[10px] font-black text-emerald-700">سود هر واحد:</span>
+                   <span className="text-xs font-black text-emerald-600">{formatCurrency(unitProfit)} <span className="text-[8px] opacity-70">({toPersianNumbers(p.marginPercent)}٪)</span></span>
                 </div>
               </div>
               
               <div className="flex justify-between items-center mb-5 px-1">
-                <div><p className="text-[8px] font-black text-slate-400">قیمت فروش</p><p className="text-sm md:text-base font-black text-indigo-950">{formatCurrency(p.sellPrice)}</p></div>
-                <div className="text-left bg-emerald-50 px-2 py-1 rounded-lg border border-emerald-100">
-                   <p className="text-[10px] font-black text-emerald-700">{toPersianNumbers(p.marginPercent)}% سود</p>
+                <div>
+                  <p className="text-[8px] font-black text-slate-400">قیمت نهایی فروش</p>
+                  <p className="text-sm md:text-base font-black text-indigo-950">{formatCurrency(p.sellPrice)}</p>
                 </div>
               </div>
 
@@ -166,7 +177,7 @@ const Inventory: React.FC<InventoryProps> = ({ data, setData, currentUser }) => 
         })}
       </div>
 
-      {/* مدال ثبت کالا - بهینه شده برای موبایل */}
+      {/* مدال ثبت کالا */}
       {showModal && (
         <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-slate-900/90 backdrop-blur-md safe-padding">
           <div className="bg-white w-full h-full md:h-auto md:max-h-[95vh] md:max-w-2xl md:rounded-[2.5rem] shadow-2xl relative z-[1100] flex flex-col animate-fadeIn overflow-hidden">
@@ -194,7 +205,7 @@ const Inventory: React.FC<InventoryProps> = ({ data, setData, currentUser }) => 
                   <div className="bg-slate-900 rounded-xl p-4 text-white flex flex-col items-center gap-2 border-2 border-indigo-600/20 text-center">
                     <div className="text-xs">قیمت تمام شده: <span className="font-black">{formatCurrency(calculateTotalCost())}</span></div>
                     <div className="w-full bg-white/5 p-3 rounded-lg border border-white/10">
-                      <p className="text-[8px] font-black text-emerald-400 mb-0.5">قیمت فروش پیشنهادی:</p>
+                      <p className="text-[8px] font-black text-emerald-400 mb-0.5">سود واحد: <span className="font-bold">{formatCurrency(calculateFinalPrice() - calculateTotalCost())}</span></p>
                       <p className="text-xl md:text-2xl font-black text-emerald-400">{formatCurrency(calculateFinalPrice())}</p>
                     </div>
                   </div>
