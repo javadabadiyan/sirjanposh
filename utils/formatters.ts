@@ -5,18 +5,16 @@ export const toPersianNumbers = (str: string | number): string => {
 };
 
 export const toEnglishDigits = (str: string | number): string => {
-  const persianDigits = [/۰/g, /۱/g, /۲/g, /۳/g, /۴/g, /۵/g, /٦/g, /۷/g, /۸/g, /۹/g];
-  const arabicDigits = [/٠/g, /١/g, /٢/g, /٣/g, /٤/g, /٥/g, /٦/g, /٧/g, /٨/g, /٩/g];
-  let res = String(str);
-  for (let i = 0; i < 10; i++) {
-    res = res.replace(persianDigits[i], String(i)).replace(arabicDigits[i], String(i));
-  }
-  return res;
+  if (str === null || str === undefined) return '';
+  return String(str)
+    .replace(/[\u06F0-\u06F9]/g, (d) => String(d.charCodeAt(0) - 1776)) // تبدیل اعداد فارسی (۰-۹)
+    .replace(/[\u0660-\u0669]/g, (d) => String(d.charCodeAt(0) - 1632)); // تبدیل اعداد عربی (٠-٩)
 };
 
 export const formatWithCommas = (val: string | number): string => {
   if (val === undefined || val === null) return '';
-  const num = String(val).replace(/[^0-9]/g, '');
+  // ابتدا به انگلیسی تبدیل می‌کنیم تا مطمئن شویم فقط اعداد 0-9 باقی می‌مانند
+  const num = toEnglishDigits(val).replace(/[^0-9]/g, '');
   if (!num) return '';
   return num.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
 };
@@ -44,15 +42,15 @@ export const getCurrentJalaliDate = (): string => {
 export const parseRawNumber = (str: string | number): number => {
   if (typeof str === 'number') return str;
   const engStr = toEnglishDigits(str);
-  return Number(engStr.replace(/[^0-9,]/g, '').replace(/,/g, '')) || 0;
+  return Number(engStr.replace(/[^0-9]/g, '')) || 0;
 };
 
-// توابع جدید برای تقویم
 export const getJalaliMonthDays = (year: number, month: number): number => {
-  if (month <= 6) return 31;
-  if (month <= 11) return 30;
-  // محاسبه سال کبیسه جلالی (ساده شده)
-  const isLeap = [1, 5, 9, 13, 17, 22, 26, 30].includes(year % 33);
+  const m = parseInt(toEnglishDigits(month));
+  const y = parseInt(toEnglishDigits(year));
+  if (m <= 6) return 31;
+  if (m <= 11) return 30;
+  const isLeap = [1, 5, 9, 13, 17, 22, 26, 30].includes(y % 33);
   return isLeap ? 30 : 29;
 };
 

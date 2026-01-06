@@ -22,7 +22,8 @@ const Inventory: React.FC<InventoryProps> = ({ data, setData, currentUser }) => 
   const calculateTotalCost = () => parseRawNumber(formData.buyPrice) + parseRawNumber(formData.shippingCost);
   const calculateFinalPrice = () => {
     const total = calculateTotalCost();
-    return Math.round(total + (total * (parseRawNumber(formData.marginPercent) / 100)));
+    const margin = parseRawNumber(formData.marginPercent);
+    return Math.round(total + (total * (margin / 100)));
   };
 
   const getSoldCount = (productId: string) => {
@@ -68,8 +69,9 @@ const Inventory: React.FC<InventoryProps> = ({ data, setData, currentUser }) => 
   };
 
   const handleNumericChange = (field: string, value: string) => {
+    // تبدیل آنی به انگلیسی و حذف هر کاراکتر غیر عددی
     const cleanValue = toEnglishDigits(value).replace(/[^0-9]/g, '');
-    setFormData({ ...formData, [field]: cleanValue });
+    setFormData(prev => ({ ...prev, [field]: cleanValue }));
   };
 
   const exportToExcel = () => {
