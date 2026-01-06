@@ -10,6 +10,8 @@ import BackupRestore from './components/BackupRestore';
 import Login from './components/Login';
 import Sidebar from './components/Sidebar';
 
+const SESSION_KEY = 'sirjan_poosh_auth_session';
+
 const App: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -17,11 +19,22 @@ const App: React.FC = () => {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [currentUser, setCurrentUser] = useState<User | null>(() => {
     try {
-      const saved = sessionStorage.getItem('sirjan_poosh_session');
+      const saved = localStorage.getItem(SESSION_KEY);
       return saved ? JSON.parse(saved) : null;
-    } catch { return null; }
+    } catch { 
+      return null; 
+    }
   });
   const [activeTab, setActiveTab] = useState('dashboard');
+
+  // ذخیره کاربر در LocalStorage به محض تغییر
+  useEffect(() => {
+    if (currentUser) {
+      localStorage.setItem(SESSION_KEY, JSON.stringify(currentUser));
+    } else {
+      localStorage.removeItem(SESSION_KEY);
+    }
+  }, [currentUser]);
 
   const loadData = async () => {
     try {
@@ -82,6 +95,13 @@ const App: React.FC = () => {
     }
   };
 
+  const handleLogout = () => {
+    if (confirm('آیا قصد خروج از سامانه را دارید؟')) {
+      setCurrentUser(null);
+      localStorage.removeItem(SESSION_KEY);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-slate-900 text-white">
@@ -110,8 +130,18 @@ const App: React.FC = () => {
     );
   }
 
-  if (!data || !currentUser) {
+  // اگر کاربر لاگین نکرده باشد، صفحه لاگین نشان داده می‌شود
+  if (!currentUser) {
     return <Login onLogin={setCurrentUser} users={data?.users || []} />;
+  }
+
+  // اگر کاربر لاگین کرده ولی دیتایی نیست (مثلاً در حال لود مجدد بعد از خطا)
+  if (!data) {
+     return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-900 text-white">
+        <div className="text-xl font-bold animate-pulse">در حال آماده‌سازی پنل...</div>
+      </div>
+    );
   }
 
   const canAccess = (tab: string) => currentUser.role === 'admin' || currentUser.permissions?.includes(tab);
@@ -126,16 +156,21 @@ const App: React.FC = () => {
       )}
 
       <aside className="hidden lg:flex flex-col w-80 bg-slate-900 text-white fixed h-full shadow-2xl">
-        <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} onLogout={() => {
-          sessionStorage.removeItem('sirjan_poosh_session');
-          setCurrentUser(null);
-        }} permissions={currentUser.role === 'admin' ? undefined : currentUser.permissions} />
+        <Sidebar 
+          activeTab={activeTab} 
+          setActiveTab={setActiveTab} 
+          onLogout={handleLogout} 
+          permissions={currentUser.role === 'admin' ? undefined : currentUser.permissions} 
+        />
       </aside>
 
       <div className="flex-1 lg:mr-80 min-h-screen flex flex-col">
         <header className="lg:hidden bg-white border-b px-5 py-4 flex justify-between items-center sticky top-0 z-30 shadow-sm">
-          <div className="flex items-center gap-3"><h1 className="text-base font-black">سیرجان پوش</h1></div>
-          <button onClick={() => setCurrentUser(null)} className="text-red-500 font-black">خروج</button>
+          <div className="flex items-center gap-3">
+            <div className="bg-indigo-600 w-8 h-8 rounded-lg flex items-center justify-center text-sm">👕</div>
+            <h1 className="text-base font-black">سیرجان پوش</h1>
+          </div>
+          <button onClick={handleLogout} className="text-red-500 font-black text-xs px-3 py-2 bg-red-50 rounded-lg">خروج</button>
         </header>
 
         <main className="p-4 md:p-8 lg:p-10">
