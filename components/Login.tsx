@@ -101,8 +101,12 @@ const Login: React.FC<LoginProps> = ({ onLogin, users }) => {
           </button>
         </form>
 
-        <div className="mt-12 text-center">
-           <p className="text-[10px] text-slate-300 font-black uppercase tracking-[0.2em]">Designed for Sirjan Poosh © 1404</p>
+        <div className="mt-12 text-center space-y-2">
+           <p className="text-[10px] text-slate-600 font-black uppercase tracking-widest">Powered by sirjanpoosh.ir</p>
+           <p className="text-[9px] text-slate-400 font-bold leading-relaxed">
+             کدنویسی شده توسط : جناب آقای محمد جواد آبادیان <br/>
+             (مثه بابای برای همه شریک ها)
+           </p>
         </div>
       </div>
     </div>

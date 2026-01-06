@@ -48,7 +48,15 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, onLogout, pe
         ))}
       </nav>
 
-      <div className="mt-auto shrink-0 pb-4">
+      <div className="mt-auto shrink-0 space-y-4 pb-4">
+        <div className="px-4 py-3 bg-white/5 rounded-2xl border border-white/5">
+          <p className="text-[8px] text-slate-500 font-black uppercase tracking-tighter mb-1">توسعه و پشتیبانی:</p>
+          <p className="text-[10px] text-indigo-400 font-bold leading-relaxed">
+            کدنویسی شده توسط : جناب آقای محمد جواد آبادیان <br/>
+            <span className="text-slate-500 opacity-60 text-[9px]">(مثه بابای برای همه شریک ها)</span>
+          </p>
+        </div>
+        
         <button
           onClick={onLogout}
           className="w-full bg-red-500/10 hover:bg-red-500 text-red-500 hover:text-white py-5 rounded-2xl transition-all font-black flex items-center justify-center space-x-reverse space-x-3 border border-red-500/20 shadow-lg active:scale-95 min-h-[56px]"
