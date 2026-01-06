@@ -16,12 +16,13 @@
     "xlsx": "^0.18.5",
     "html2canvas": "^1.4.1",
     "jspdf": "^2.5.1",
-    "@vercel/kv": "^1.0.1"
+    "@neondatabase/serverless": "^1.0.2"
   },
   "devDependencies": {
     "@types/react": "^18.3.1",
     "@types/react-dom": "^18.3.1",
     "@vitejs/plugin-react": "^4.3.4",
+    "@types/node": "^20.11.0",
     "typescript": "^5.7.3",
     "vite": "^6.1.0"
   }
