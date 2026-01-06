@@ -33,20 +33,38 @@ const Partners: React.FC<PartnersProps> = ({ data, setData }) => {
   const getPartnerTotalInvestment = (partner: Partner) => partner.investments.reduce((sum, inv) => sum + inv.amount, 0);
   const totalInvestment = data.partners.reduce((acc, p) => acc + getPartnerTotalInvestment(p), 0);
 
+  // تابع اصلاح شده برای محاسبه دقیق سود بر اساس سال و ماه
   const calculateProfitForPeriod = (period: string) => {
     let totalProfit = 0;
-    const normalizedPeriod = toPersianNumbers(toEnglishDigits(period));
     
+    // تبدیل دوره انتخابی به اعداد انگلیسی و جدا کردن سال و ماه
+    const engPeriod = toEnglishDigits(period);
+    const periodParts = engPeriod.split('/');
+    if (periodParts.length < 2) return 0;
+    
+    const targetYear = periodParts[0];
+    const targetMonth = periodParts[1].padStart(2, '0'); // استانداردسازی ماه (مثلاً ۱ به ۰۱)
+
     data.invoices.forEach(inv => {
-      if (toPersianNumbers(inv.date).includes(normalizedPeriod)) {
-        inv.items.forEach(item => {
-          const product = data.products.find(p => p.id === item.productId);
-          if (product) {
-            const costPerUnit = product.buyPrice + product.shippingCost;
-            const profitPerUnit = item.price - costPerUnit;
-            totalProfit += profitPerUnit * item.quantity;
-          }
-        });
+      // تبدیل تاریخ فاکتور به اعداد انگلیسی و جدا کردن اجزا
+      const invDateEng = toEnglishDigits(inv.date);
+      const invParts = invDateEng.split('/');
+      
+      if (invParts.length >= 2) {
+        const invYear = invParts[0];
+        const invMonth = invParts[1].padStart(2, '0');
+
+        // مقایسه دقیق سال و ماه
+        if (invYear === targetYear && invMonth === targetMonth) {
+          inv.items.forEach(item => {
+            const product = data.products.find(p => p.id === item.productId);
+            if (product) {
+              const costPerUnit = product.buyPrice + product.shippingCost;
+              const profitPerUnit = item.price - costPerUnit;
+              totalProfit += profitPerUnit * item.quantity;
+            }
+          });
+        }
       }
     });
     return totalProfit;
@@ -67,7 +85,7 @@ const Partners: React.FC<PartnersProps> = ({ data, setData }) => {
 
   const handlePayDividends = () => {
     const profit = parseRawNumber(monthlyProfit);
-    if (profit <= 0) return alert('سود دوره جاری صفر یا منفی است.');
+    if (profit <= 0) return alert('سود دوره جاری صفر یا منفی است. سودی برای تقسیم وجود ندارد.');
 
     const newPayments: PaymentHistory[] = data.partners.map(p => ({
       id: Date.now().toString() + p.id,
@@ -237,16 +255,24 @@ const Partners: React.FC<PartnersProps> = ({ data, setData }) => {
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
             <div className="space-y-2">
-              <label className="text-[10px] font-black text-slate-400 mr-2 uppercase">انتخاب دوره (فارسی)</label>
-              <input className="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl font-black text-center outline-none focus:border-indigo-500 min-h-[52px]" value={toPersianNumbers(selectedPeriod)} onChange={e=>setSelectedPeriod(e.target.value)} placeholder="۱۴۰۳/۱۱" />
+              <label className="text-[10px] font-black text-slate-400 mr-2 uppercase">انتخاب ماه و سال (۱۴۰۴/۱۱)</label>
+              <input 
+                className="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl font-black text-center outline-none focus:border-indigo-500 min-h-[52px]" 
+                value={toPersianNumbers(selectedPeriod)} 
+                onChange={e=>setSelectedPeriod(toPersianNumbers(e.target.value))} 
+                placeholder="۱۴۰۴/۱۱" 
+              />
             </div>
             <div className="space-y-2 relative">
-              <label className="text-[10px] font-black text-slate-400 mr-2 uppercase">سود خالص کل (تومان)</label>
+              <label className="text-[10px] font-black text-slate-400 mr-2 uppercase">سود خالص کل دوره (تومان)</label>
               <input className={`w-full p-4 border-2 rounded-2xl font-black text-center text-lg outline-none transition-all min-h-[52px] ${isAutoCalculating ? 'bg-indigo-50 border-indigo-200 text-indigo-700' : 'bg-white border-slate-200 text-slate-700'}`} value={toPersianNumbers(formatWithCommas(monthlyProfit))} onChange={e=>{setMonthlyProfit(toEnglishDigits(e.target.value).replace(/,/g,'')); setIsAutoCalculating(false);}} />
+              {parseRawNumber(monthlyProfit) === 0 && isAutoCalculating && (
+                <p className="text-[8px] text-red-500 font-bold mt-1 text-center animate-pulse">⚠️ هیچ فاکتور فروشی برای این ماه ثبت نشده است</p>
+              )}
             </div>
           </div>
           <div className="bg-slate-900 rounded-[2rem] md:rounded-[2.5rem] p-6 md:p-8 text-white space-y-4 shadow-2xl">
-            <p className="text-[9px] font-black opacity-50 uppercase tracking-widest text-center">پیش‌نمایش تقسیم سود دوره {toPersianNumbers(selectedPeriod)}</p>
+            <p className="text-[9px] font-black opacity-50 uppercase tracking-widest text-center">پیش‌نمایش سهم شرکا - دوره {toPersianNumbers(selectedPeriod)}</p>
             {data.partners.map(p => (
               <div key={p.id} className="flex justify-between items-center border-b border-white/10 pb-3 last:border-0">
                 <span className="font-bold text-xs md:text-sm truncate pr-2">{p.name}</span>
