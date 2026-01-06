@@ -44,6 +44,7 @@ export interface InvoiceItem {
 export interface Invoice {
   id: string;
   customerName: string;
+  customerAddress: string;
   items: InvoiceItem[];
   totalAmount: number;
   date: string;
