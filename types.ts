@@ -45,6 +45,7 @@ export interface Invoice {
   id: string;
   customerName: string;
   customerAddress: string;
+  customerPhone: string; // فیلد جدید شماره تماس
   items: InvoiceItem[];
   totalAmount: number;
   date: string;

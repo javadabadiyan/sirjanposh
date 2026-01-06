@@ -15,6 +15,8 @@ const Invoices: React.FC<InvoicesProps> = ({ data, setData }) => {
   const [editingInvoice, setEditingInvoice] = useState<Invoice | null>(null);
   const [customerName, setCustomerName] = useState('');
   const [customerAddress, setCustomerAddress] = useState('');
+  const [customerPhone, setCustomerPhone] = useState('');
+  const [invoiceDate, setInvoiceDate] = useState('');
   const [items, setItems] = useState<InvoiceItem[]>([]);
   const [selectedProduct, setSelectedProduct] = useState('');
   const [qty, setQty] = useState(1);
@@ -27,6 +29,8 @@ const Invoices: React.FC<InvoicesProps> = ({ data, setData }) => {
     setEditingInvoice(inv);
     setCustomerName(inv.customerName);
     setCustomerAddress(inv.customerAddress || '');
+    setCustomerPhone(inv.customerPhone || '');
+    setInvoiceDate(inv.date);
     setItems([...inv.items]);
     setShowModal(true);
   };
@@ -62,9 +66,10 @@ const Invoices: React.FC<InvoicesProps> = ({ data, setData }) => {
       id: editingInvoice ? editingInvoice.id : Date.now().toString(),
       customerName,
       customerAddress,
+      customerPhone,
       items,
       totalAmount: items.reduce((acc, i) => acc + (i.price * i.quantity), 0),
-      date: editingInvoice ? editingInvoice.date : getCurrentJalaliDate()
+      date: invoiceDate || getCurrentJalaliDate()
     };
 
     const updatedInvoices = editingInvoice 
@@ -77,6 +82,8 @@ const Invoices: React.FC<InvoicesProps> = ({ data, setData }) => {
     setItems([]);
     setCustomerName('');
     setCustomerAddress('');
+    setCustomerPhone('');
+    setInvoiceDate('');
   };
 
   const exportJPG = async () => {
@@ -100,16 +107,16 @@ const Invoices: React.FC<InvoicesProps> = ({ data, setData }) => {
     pdf.save(`Invoice-${showPrintModal?.id.slice(-4)}.pdf`);
   };
 
-  const filtered = data.invoices.filter(i => i.customerName.includes(searchTerm)).reverse();
+  const filtered = data.invoices.filter(i => i.customerName.includes(searchTerm) || i.customerPhone?.includes(searchTerm)).reverse();
 
   return (
     <div className="space-y-6 animate-slide-up pb-24 px-4 lg:px-0">
       <div className="flex flex-col md:flex-row justify-between items-center gap-4 bg-white/80 backdrop-blur-md p-6 rounded-[2.5rem] shadow-xl shadow-slate-200/50 border border-white">
         <div className="relative w-full md:w-96">
-          <input placeholder="🔍 جستجوی فاکتور یا مشتری..." className="w-full pr-12 py-4 bg-slate-100/50 border-2 border-transparent rounded-2xl font-bold outline-none focus:border-indigo-500 transition-all" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+          <input placeholder="🔍 جستجو (مشتری یا شماره تماس)..." className="w-full pr-12 py-4 bg-slate-100/50 border-2 border-transparent rounded-2xl font-bold outline-none focus:border-indigo-500 transition-all" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
           <span className="absolute right-4 top-1/2 -translate-y-1/2 opacity-30">🔍</span>
         </div>
-        <button onClick={() => { setEditingInvoice(null); setCustomerName(''); setCustomerAddress(''); setItems([]); setShowModal(true); }} className="w-full md:w-auto bg-indigo-600 text-white px-10 py-4 rounded-2xl font-black shadow-xl hover:bg-indigo-700 hover:-translate-y-1 transition-all active:scale-95 text-lg">+ صدور فاکتور جدید</button>
+        <button onClick={() => { setEditingInvoice(null); setCustomerName(''); setCustomerAddress(''); setCustomerPhone(''); setInvoiceDate(getCurrentJalaliDate()); setItems([]); setShowModal(true); }} className="w-full md:w-auto bg-indigo-600 text-white px-10 py-4 rounded-2xl font-black shadow-xl hover:bg-indigo-700 hover:-translate-y-1 transition-all active:scale-95 text-lg">+ صدور فاکتور جدید</button>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -120,6 +127,7 @@ const Invoices: React.FC<InvoicesProps> = ({ data, setData }) => {
               <div>
                 <p className="text-[10px] font-black text-indigo-500 mb-1 uppercase tracking-widest">فاکتور #{toPersianNumbers(inv.id.slice(-4))}</p>
                 <h4 className="text-xl font-black text-slate-800">{inv.customerName}</h4>
+                {inv.customerPhone && <p className="text-[10px] font-bold text-slate-400 mt-1">{toPersianNumbers(inv.customerPhone)}</p>}
               </div>
               <span className="text-[10px] font-bold text-slate-400 bg-slate-50 px-3 py-1 rounded-full">{toPersianNumbers(inv.date)}</span>
             </div>
@@ -153,10 +161,14 @@ const Invoices: React.FC<InvoicesProps> = ({ data, setData }) => {
             </div>
             
             <div className="p-8 overflow-y-auto flex-1 space-y-8 bg-slate-50/30">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 <div className="space-y-2">
                   <label className="text-xs font-black text-slate-400 mr-2">نام مشتری</label>
                   <input placeholder="نام مشتری..." className="w-full p-5 bg-white border-2 border-slate-100 rounded-2xl font-black outline-none focus:border-indigo-500 shadow-sm" value={customerName} onChange={e => setCustomerName(e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-xs font-black text-slate-400 mr-2">شماره تماس</label>
+                  <input placeholder="۰۹۱۲..." className="w-full p-5 bg-white border-2 border-slate-100 rounded-2xl font-black outline-none focus:border-indigo-500 shadow-sm text-center" value={customerPhone} onChange={e => setCustomerPhone(e.target.value)} />
                 </div>
                 <div className="space-y-2">
                   <label className="text-xs font-black text-slate-400 mr-2">آدرس مشتری</label>
@@ -164,7 +176,12 @@ const Invoices: React.FC<InvoicesProps> = ({ data, setData }) => {
                 </div>
                 <div className="space-y-2">
                   <label className="text-xs font-black text-slate-400 mr-2">تاریخ ثبت</label>
-                  <input className="w-full p-5 bg-white border-2 border-slate-100 rounded-2xl font-black text-center text-slate-400" readOnly value={toPersianNumbers(editingInvoice ? editingInvoice.date : getCurrentJalaliDate())} />
+                  <input 
+                    placeholder="۱۴۰۳/۰۱/۰۱"
+                    className="w-full p-5 bg-white border-2 border-slate-100 rounded-2xl font-black text-center text-indigo-600 outline-none focus:border-indigo-500 shadow-sm" 
+                    value={invoiceDate} 
+                    onChange={e => setInvoiceDate(e.target.value)} 
+                  />
                 </div>
               </div>
 
@@ -250,7 +267,10 @@ const Invoices: React.FC<InvoicesProps> = ({ data, setData }) => {
 
              <div className="mb-12 p-8 bg-slate-900 rounded-[2.5rem] text-white">
                 <p className="text-xs opacity-50 mb-2">اطلاعات خریدار:</p>
-                <p className="text-3xl font-black mb-2">{showPrintModal.customerName}</p>
+                <p className="text-3xl font-black mb-1">{showPrintModal.customerName}</p>
+                {showPrintModal.customerPhone && (
+                  <p className="text-lg font-black text-emerald-400 mb-2">{toPersianNumbers(showPrintModal.customerPhone)}</p>
+                )}
                 {showPrintModal.customerAddress && (
                   <p className="text-sm font-bold opacity-75 mt-2 border-t border-white/10 pt-2">آدرس: {showPrintModal.customerAddress}</p>
                 )}
