@@ -17,7 +17,6 @@ const INITIAL_DATA = {
 };
 
 export default async function handler(request: Request) {
-  // استفاده از متغیر دستی که در تصویر قبل ساختید
   const databaseUrl = process.env.NEON_DB_URL || process.env.DATABASE_URL;
   
   const headers = new Headers({
@@ -33,14 +32,15 @@ export default async function handler(request: Request) {
 
   if (!databaseUrl) {
     return new Response(JSON.stringify({ 
-      error: 'پیکربندی دیتابیس یافت نشد', 
-      details: 'لطفاً متغیر NEON_DB_URL را در تنظیمات Vercel چک کنید.' 
+      error: 'اتصال دیتابیس برقرار نیست', 
+      details: 'لطفاً مقدار NEON_DB_URL را در تنظیمات Environment Variables پنل Vercel اضافه کرده و پروژه را Redeploy کنید.' 
     }), { status: 500, headers });
   }
 
   try {
     const sql = neon(databaseUrl);
     
+    // اطمینان از وجود جدول در هر درخواست
     await sql`CREATE TABLE IF NOT EXISTS app_state (
       id INT PRIMARY KEY, 
       content JSONB NOT NULL, 
@@ -55,20 +55,23 @@ export default async function handler(request: Request) {
 
     if (request.method === 'POST') {
       const body = await request.json();
+      
+      // عملیات ذخیره‌سازی
       await sql`
         INSERT INTO app_state (id, content, updated_at)
         VALUES (1, ${body}, CURRENT_TIMESTAMP)
         ON CONFLICT (id) 
         DO UPDATE SET content = ${body}, updated_at = CURRENT_TIMESTAMP
       `;
-      return new Response(JSON.stringify({ success: true }), { status: 200, headers });
+      
+      return new Response(JSON.stringify({ success: true, message: 'اطلاعات با موفقیت ذخیره شد' }), { status: 200, headers });
     }
 
     return new Response(JSON.stringify({ error: 'متد نامعتبر' }), { status: 405, headers });
   } catch (error: any) {
-    console.error('Neon Error:', error);
+    console.error('Database Error:', error);
     return new Response(JSON.stringify({ 
-      error: 'خطای دیتابیس ابری', 
+      error: 'خطا در عملیات دیتابیس', 
       details: error.message 
     }), { status: 500, headers });
   }
