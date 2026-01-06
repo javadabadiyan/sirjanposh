@@ -17,6 +17,7 @@ const INITIAL_DATA = {
 };
 
 export default async function handler(request: Request) {
+  // استفاده از متغیر دستی که در تصویر قبل ساختید
   const databaseUrl = process.env.NEON_DB_URL || process.env.DATABASE_URL;
   
   const headers = new Headers({
@@ -32,8 +33,8 @@ export default async function handler(request: Request) {
 
   if (!databaseUrl) {
     return new Response(JSON.stringify({ 
-      error: 'پیکربندی ناقص', 
-      details: 'آدرس دیتابیس (NEON_DB_URL) در تنظیمات Vercel یافت نشد.' 
+      error: 'پیکربندی دیتابیس یافت نشد', 
+      details: 'لطفاً متغیر NEON_DB_URL را در تنظیمات Vercel چک کنید.' 
     }), { status: 500, headers });
   }
 
@@ -63,12 +64,12 @@ export default async function handler(request: Request) {
       return new Response(JSON.stringify({ success: true }), { status: 200, headers });
     }
 
-    return new Response(JSON.stringify({ error: 'Method not allowed' }), { status: 405, headers });
+    return new Response(JSON.stringify({ error: 'متد نامعتبر' }), { status: 405, headers });
   } catch (error: any) {
-    console.error('Database Error:', error);
+    console.error('Neon Error:', error);
     return new Response(JSON.stringify({ 
-      error: 'خطای سرور ابری', 
-      details: error.message || 'ارتباط با دیتابیس Neon برقرار نشد.'
+      error: 'خطای دیتابیس ابری', 
+      details: error.message 
     }), { status: 500, headers });
   }
 }
