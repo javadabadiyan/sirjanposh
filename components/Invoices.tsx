@@ -227,7 +227,7 @@ const Invoices: React.FC<InvoicesProps> = ({ data, setData }) => {
                   <input className="w-full p-4 bg-white border-2 border-slate-100 rounded-2xl font-bold outline-none focus:border-indigo-500 shadow-sm" value={customerName} onChange={e => setCustomerName(e.target.value)} />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-[10px] font-black text-slate-400 mr-2 uppercase">شماره تماس (فارسی)</label>
+                  <label className="text-[10px] font-black text-slate-400 mr-2 uppercase">شماره تماس</label>
                   <input className="w-full p-4 bg-white border-2 border-slate-100 rounded-2xl font-bold outline-none focus:border-indigo-500 shadow-sm text-center" value={toPersianNumbers(customerPhone)} onChange={e => setCustomerPhone(e.target.value)} />
                 </div>
                 <div className="space-y-1.5 sm:col-span-2 lg:col-span-1">
@@ -235,7 +235,7 @@ const Invoices: React.FC<InvoicesProps> = ({ data, setData }) => {
                   <input className="w-full p-4 bg-white border-2 border-slate-100 rounded-2xl font-bold outline-none focus:border-indigo-500 shadow-sm" value={customerAddress} onChange={e => setCustomerAddress(e.target.value)} />
                 </div>
                 <div className="space-y-1.5">
-                  <DatePicker label="تاریخ فاکتور" value={invoiceDate} onChange={val => setInvoiceDate(val)} accentColor="indigo" />
+                  <DatePicker label="تاریخ فاکتور" value={invoiceDate} onChange={val => setInvoiceDate(val)} accentColor="indigo" className="z-[50]" />
                 </div>
               </div>
 
