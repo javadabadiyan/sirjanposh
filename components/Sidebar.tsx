@@ -51,7 +51,9 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, onLogout, pe
       <div className="mt-auto">
         <div className="bg-slate-800/50 p-6 rounded-3xl mb-6 border border-slate-700/50">
            <p className="text-[10px] font-black text-slate-500 uppercase mb-3">پشتیبانی سیستم</p>
-           <button className="text-xs text-indigo-400 font-bold hover:text-white transition-colors">تماس با توسعه‌دهنده</button>
+           <button className="text-[11px] text-indigo-400 font-bold hover:text-white transition-colors leading-relaxed text-right">
+             تماس با توسعه‌دهنده آقای جواد آبادیان <br/> (مثه یه پدری هست برای همه شما شریکا)
+           </button>
         </div>
         <button
           onClick={onLogout}
