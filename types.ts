@@ -16,13 +16,15 @@ export interface InvestmentRecord {
   id: string;
   amount: number;
   date: string;
+  registeredBy: string;
 }
 
 export interface Partner {
   id: string;
   name: string;
-  investments: InvestmentRecord[]; // لیستی از واریزی‌ها به جای یک مبلغ واحد
-  date: string; // تاریخ ثبت اولیه شریک
+  investments: InvestmentRecord[];
+  date: string;
+  registeredBy: string;
 }
 
 export interface PaymentHistory {
@@ -32,6 +34,7 @@ export interface PaymentHistory {
   period: string;
   date: string;
   description: string;
+  registeredBy: string;
 }
 
 export interface InvoiceItem {
@@ -45,10 +48,11 @@ export interface Invoice {
   id: string;
   customerName: string;
   customerAddress: string;
-  customerPhone: string; // فیلد جدید شماره تماس
+  customerPhone: string;
   items: InvoiceItem[];
   totalAmount: number;
   date: string;
+  registeredBy: string;
 }
 
 export interface User {
@@ -57,6 +61,7 @@ export interface User {
   password?: string;
   role: 'admin' | 'staff';
   permissions: string[];
+  registeredBy?: string;
 }
 
 export interface AppData {

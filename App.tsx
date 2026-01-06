@@ -133,7 +133,7 @@ const App: React.FC = () => {
         </div>
       )}
 
-      {/* منوی کناری دسکتاپ (مخفی در موبایل) */}
+      {/* منوی کناری دسکتاپ */}
       <aside className="hidden lg:flex flex-col w-80 bg-slate-900 text-white fixed h-full shadow-2xl z-40 transition-all duration-300">
         <Sidebar 
           activeTab={activeTab} 
@@ -143,7 +143,7 @@ const App: React.FC = () => {
         />
       </aside>
 
-      {/* دراور موبایل (نمایش فقط در موبایل و تبلت) */}
+      {/* دراور موبایل */}
       <div className={`fixed inset-0 z-[100] lg:hidden transition-all duration-500 ${isMobileMenuOpen ? 'visible' : 'invisible'}`}>
         <div 
           className={`absolute inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity duration-500 ${isMobileMenuOpen ? 'opacity-100' : 'opacity-0'}`}
@@ -160,7 +160,6 @@ const App: React.FC = () => {
       </div>
 
       <div className="flex-1 lg:mr-80 min-h-screen flex flex-col w-full overflow-x-hidden">
-        {/* هدر موبایل (نمایش فقط در موبایل و تبلت) */}
         <header className="lg:hidden bg-white border-b px-4 py-4 flex justify-between items-center sticky top-0 z-30 shadow-sm backdrop-blur-md bg-white/90 safe-padding">
           <div className="flex items-center gap-2">
             <button 
@@ -183,9 +182,9 @@ const App: React.FC = () => {
           <div className="max-w-[1600px] mx-auto">
             {activeTab === 'dashboard' && <Dashboard data={data} />}
             {activeTab === 'inventory' && canAccess('inventory') && <Inventory data={data} setData={updateData} currentUser={currentUser} />}
-            {activeTab === 'partners' && canAccess('partners') && <Partners data={data} setData={updateData} />}
-            {activeTab === 'invoices' && canAccess('invoices') && <Invoices data={data} setData={updateData} />}
-            {activeTab === 'users' && canAccess('users') && <Users data={data} setData={updateData} />}
+            {activeTab === 'partners' && canAccess('partners') && <Partners data={data} setData={updateData} currentUser={currentUser} />}
+            {activeTab === 'invoices' && canAccess('invoices') && <Invoices data={data} setData={updateData} currentUser={currentUser} />}
+            {activeTab === 'users' && canAccess('users') && <Users data={data} setData={updateData} currentUser={currentUser} />}
             {activeTab === 'backup' && canAccess('backup') && <BackupRestore data={data} setData={updateData} />}
           </div>
         </main>
