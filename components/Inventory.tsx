@@ -33,6 +33,17 @@ const Inventory: React.FC<InventoryProps> = ({ data, setData, currentUser }) => 
 
   const saveProduct = (e: React.FormEvent) => {
     e.preventDefault();
+
+    // چک کردن کد تکراری کالا
+    const duplicateProduct = data.products.find(p => 
+      p.code.trim() === formData.code.trim() && p.id !== (editingProduct?.id || '')
+    );
+
+    if (duplicateProduct) {
+      const confirmDuplicate = confirm(`⚠️ هشدار: کد کالای "${formData.code}" قبلاً برای محصول "${duplicateProduct.name}" ثبت شده است. آیا مایلید کالا با کد تکراری ثبت شود؟`);
+      if (!confirmDuplicate) return;
+    }
+
     const newProduct: Product = {
       id: editingProduct ? editingProduct.id : Date.now().toString(),
       code: formData.code,
@@ -199,7 +210,7 @@ const Inventory: React.FC<InventoryProps> = ({ data, setData, currentUser }) => 
                   <div className="space-y-1"><label className="text-[9px] font-black text-slate-500 mr-2">کد کالا</label><input required className="w-full p-3.5 bg-white border-2 border-slate-100 rounded-xl outline-none focus:border-indigo-500 font-bold text-center" value={formData.code} onChange={e => setFormData({...formData, code: e.target.value})} /></div>
                   <div className="space-y-1"><label className="text-[9px] font-black text-slate-500 mr-2">نام دقیق لباس</label><input required className="w-full p-3.5 bg-white border-2 border-slate-100 rounded-xl outline-none focus:border-indigo-500 font-bold" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} /></div>
                   <div className="space-y-1"><label className="text-[9px] font-black text-slate-500 mr-2">تعداد فعلی</label><input required type="text" className="w-full p-3.5 bg-white border-2 border-slate-100 rounded-xl outline-none focus:border-indigo-500 font-black text-center text-lg text-indigo-700" value={toPersianNumbers(formData.quantity)} onChange={e => handleNumericChange('quantity', e.target.value)} /></div>
-                  <div className="space-y-1"><label className="text-[9px] font-black text-slate-500 mr-2">تاریخ ثبت</label><input required className="w-full p-3.5 bg-white border-2 border-slate-100 rounded-xl outline-none focus:border-indigo-500 font-bold text-center" value={formData.date} onChange={e => setFormData({...formData, date: e.target.value})} /></div>
+                  <div className="space-y-1"><label className="text-[9px] font-black text-slate-500 mr-2">تاریخ ثبت (قابل ویرایش)</label><input required className="w-full p-3.5 bg-white border-2 border-slate-100 rounded-xl outline-none focus:border-indigo-500 font-bold text-center" value={formData.date} onChange={e => setFormData({...formData, date: e.target.value})} /></div>
                 </div>
 
                 <div className="p-4 md:p-6 bg-white rounded-2xl border-2 border-slate-100 shadow-inner space-y-4">
