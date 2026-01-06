@@ -100,7 +100,7 @@ const App: React.FC = () => {
           <p className="text-red-600 font-bold mb-6 text-sm">{errorMsg}</p>
           <div className="bg-slate-50 p-4 rounded-2xl text-xs text-slate-500 font-bold mb-6 text-right leading-relaxed">
             ۱. وارد پنل Vercel شوید.<br/>
-            ۲. به بخش <b>Settings {'->'} Environment Variables</b> بروید.<br/>
+            ۲. به بخش <b>Settings &rarr; Environment Variables</b> بروید.<br/>
             ۳. متغیر <b>NEON_DB_URL</b> را با لینک دیتابیس Neon مقداردهی کنید.<br/>
             ۴. پروژه را <b>Redeploy</b> کنید.
           </div>
