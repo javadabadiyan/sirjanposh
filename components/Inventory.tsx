@@ -55,7 +55,7 @@ const Inventory: React.FC<InventoryProps> = ({ data, setData, currentUser }) => 
       quantity: parseRawNumber(formData.quantity),
       sellPrice: calculateFinalPrice(),
       date: toPersianNumbers(formData.date || getCurrentJalaliDate()),
-      registeredBy: editingProduct ? editingProduct.registeredBy : (currentUser?.username || 'admin')
+      registeredBy: editingProduct ? editingProduct.registeredBy : currentUser.username
     };
 
     const updatedProducts = editingProduct 
@@ -88,6 +88,7 @@ const Inventory: React.FC<InventoryProps> = ({ data, setData, currentUser }) => 
         'موجودی فعلی': p.quantity,
         'تعداد فروخته شده': sold,
         'کل ورودی انبار': p.quantity + sold,
+        'ثبت کننده': p.registeredBy || 'مدیر سیستم',
         'تاریخ ثبت': toEnglishDigits(p.date)
       };
     });
@@ -130,7 +131,10 @@ const Inventory: React.FC<InventoryProps> = ({ data, setData, currentUser }) => 
                 <div className="space-y-1 overflow-hidden pr-2">
                   <span className="text-[8px] font-black text-indigo-500 bg-indigo-50 px-2 py-0.5 rounded-md uppercase tracking-widest">{toPersianNumbers(p.code)}</span>
                   <h4 className="font-black text-slate-800 text-base md:text-lg leading-tight truncate">{p.name}</h4>
-                  <p className="text-[8px] text-slate-400 font-bold">ثبت: {toPersianNumbers(p.date)}</p>
+                  <div className="flex flex-col gap-0.5">
+                    <p className="text-[8px] text-slate-400 font-bold">ثبت: {toPersianNumbers(p.date)}</p>
+                    <p className="text-[8px] text-indigo-400 font-black">توسط: {p.registeredBy || 'ناشناس'}</p>
+                  </div>
                 </div>
                 {isLowStock && (
                   <div className="bg-red-100 text-red-600 p-1.5 rounded-lg text-sm md:text-lg animate-bounce shrink-0">⚠️</div>
