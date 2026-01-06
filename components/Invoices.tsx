@@ -111,14 +111,32 @@ const Invoices: React.FC<InvoicesProps> = ({ data, setData, currentUser }) => {
     setData({ ...data, invoices: data.invoices.filter(i => i.id !== invId), products: updatedProducts });
   };
 
+  const captureInvoice = async () => {
+    if (!invoiceRef.current) return null;
+    return await html2canvas(invoiceRef.current, {
+      scale: 3,
+      useCORS: true,
+      allowTaint: true,
+      logging: false,
+      backgroundColor: "#ffffff",
+      onclone: (clonedDoc) => {
+        const style = clonedDoc.createElement('style');
+        style.innerHTML = `
+          * { font-family: 'Vazirmatn', sans-serif !important; }
+        `;
+        clonedDoc.head.appendChild(style);
+      }
+    });
+  };
+
   const downloadJPG = async () => {
-    if (!invoiceRef.current) return;
     setIsExporting(true);
     try {
-      const canvas = await html2canvas(invoiceRef.current, { scale: 3, useCORS: true });
+      const canvas = await captureInvoice();
+      if (!canvas) return;
       const link = document.createElement('a');
       link.download = `Invoice_A5_${toEnglishDigits(showPrintModal?.customerName || 'Customer')}_${toEnglishDigits(getCurrentJalaliDate()).replace(/\//g, '-')}.jpg`;
-      link.href = canvas.toDataURL('image/jpeg', 0.9);
+      link.href = canvas.toDataURL('image/jpeg', 0.95);
       link.click();
     } finally {
       setIsExporting(false);
@@ -126,10 +144,10 @@ const Invoices: React.FC<InvoicesProps> = ({ data, setData, currentUser }) => {
   };
 
   const downloadPDF = async () => {
-    if (!invoiceRef.current) return;
     setIsExporting(true);
     try {
-      const canvas = await html2canvas(invoiceRef.current, { scale: 3, useCORS: true });
+      const canvas = await captureInvoice();
+      if (!canvas) return;
       const imgData = canvas.toDataURL('image/png');
       const pdf = new jsPDF('p', 'mm', 'a5');
       const pdfWidth = pdf.internal.pageSize.getWidth();
@@ -161,7 +179,6 @@ const Invoices: React.FC<InvoicesProps> = ({ data, setData, currentUser }) => {
               <div className="overflow-hidden">
                 <p className="text-[9px] font-black text-indigo-500 mb-1">فاکتور #{toPersianNumbers(inv.id.slice(-4))}</p>
                 <h4 className="text-xl font-black text-slate-800 truncate">{inv.customerName}</h4>
-                <p className="text-[10px] font-bold text-slate-400 mt-1">اپراتور: {inv.registeredBy || 'ناشناس'}</p>
               </div>
               <span className="text-[10px] font-bold text-slate-400 bg-slate-50 px-3 py-1.5 rounded-full">{toPersianNumbers(inv.date)}</span>
             </div>
@@ -275,6 +292,7 @@ const Invoices: React.FC<InvoicesProps> = ({ data, setData, currentUser }) => {
               ref={invoiceRef} 
               id="printable-invoice"
               className="invoice-preview-container bg-white p-8 md:p-10 relative overflow-hidden flex flex-col"
+              style={{ fontFamily: "'Vazirmatn', sans-serif" }}
             >
               {/* Decorative Stripe */}
               <div className="absolute top-0 right-0 left-0 h-3 bg-slate-900"></div>
@@ -293,7 +311,7 @@ const Invoices: React.FC<InvoicesProps> = ({ data, setData, currentUser }) => {
                 </div>
              </div>
 
-             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+             <div className="grid grid-cols-1 gap-4 mb-8">
                 <div className="bg-slate-900 p-5 rounded-[1.5rem] text-white shadow-lg">
                    <p className="text-[7px] font-black opacity-50 mb-1.5 tracking-widest uppercase">مشتری (Buyer)</p>
                    <p className="text-base md:text-lg font-black mb-1 leading-tight">{showPrintModal.customerName}</p>
@@ -301,11 +319,6 @@ const Invoices: React.FC<InvoicesProps> = ({ data, setData, currentUser }) => {
                       {showPrintModal.customerPhone && <div className="flex items-center gap-1.5 text-emerald-400 font-black text-xs"><span>📞</span> {toPersianNumbers(showPrintModal.customerPhone)}</div>}
                       {showPrintModal.customerAddress && <div className="text-slate-400 text-[8px] font-bold leading-relaxed line-clamp-2">{showPrintModal.customerAddress}</div>}
                    </div>
-                </div>
-                <div className="p-5 border-2 border-slate-100 rounded-[1.5rem] flex flex-col justify-center">
-                   <p className="text-[7px] font-black text-slate-300 mb-1 tracking-widest uppercase">صادر کننده</p>
-                   <p className="text-xs font-black text-slate-700">{showPrintModal.registeredBy || 'مدیریت مرکزی'}</p>
-                   <p className="text-[7px] font-bold text-slate-400 mt-0.5">واحد فروش و ترخیص کالا</p>
                 </div>
              </div>
 
@@ -329,7 +342,7 @@ const Invoices: React.FC<InvoicesProps> = ({ data, setData, currentUser }) => {
                          </tr>
                       ))}
                       {/* Fill empty space to maintain A5 look */}
-                      {Array.from({ length: Math.max(0, 6 - showPrintModal.items.length) }).map((_, i) => (
+                      {Array.from({ length: Math.max(0, 8 - showPrintModal.items.length) }).map((_, i) => (
                         <tr key={`empty-${i}`} className="h-8"><td colSpan={4}></td></tr>
                       ))}
                    </tbody>

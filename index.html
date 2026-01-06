@@ -8,8 +8,30 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/Vazirmatn-font-face.css" rel="stylesheet" type="text/css" />
     <style>
+        @font-face {
+            font-family: 'Vazirmatn';
+            src: url('https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/fonts/webfonts/Vazirmatn-Regular.woff2') format('woff2');
+            font-weight: normal;
+            font-style: normal;
+            font-display: swap;
+        }
+        @font-face {
+            font-family: 'Vazirmatn';
+            src: url('https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/fonts/webfonts/Vazirmatn-Bold.woff2') format('woff2');
+            font-weight: bold;
+            font-style: normal;
+            font-display: swap;
+        }
+        @font-face {
+            font-family: 'Vazirmatn';
+            src: url('https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/fonts/webfonts/Vazirmatn-Black.woff2') format('woff2');
+            font-weight: 900;
+            font-style: normal;
+            font-display: swap;
+        }
+
         * {
-            font-family: 'Vazirmatn', sans-serif !important;
+            font-family: 'Vazirmatn', Tahoma, sans-serif !important;
             -webkit-tap-highlight-color: transparent;
             touch-action: manipulation;
             box-sizing: border-box;
@@ -63,6 +85,9 @@
 
         /* Print Specific Styles - Adjusted for A5 */
         @media print {
+            body {
+                background: white;
+            }
             body * {
                 visibility: hidden;
             }
@@ -71,6 +96,7 @@
             }
             #printable-invoice, #printable-invoice * {
                 visibility: visible;
+                font-family: 'Vazirmatn', sans-serif !important;
             }
             #printable-invoice {
                 position: absolute;
@@ -83,6 +109,7 @@
                 box-shadow: none;
                 border: none;
                 background: white;
+                overflow: hidden;
             }
             @page {
                 size: A5;
@@ -98,6 +125,7 @@
             box-shadow: 0 0 50px rgba(0,0,0,0.1);
             position: relative;
             transform-origin: top center;
+            font-family: 'Vazirmatn', sans-serif !important;
         }
         
         @media (max-width: 148mm) {
