@@ -17,26 +17,37 @@ const INITIAL_DATA = {
 };
 
 export default async function handler(request: Request) {
-  // ابتدا متغیر جدید ما را چک می‌کند، اگر نبود به سراغ متغیر پیش‌فرض می‌رود
+  // اولویت با متغیر NEON_DB_URL است چون DATABASE_URL در ورسل قفل است
   const databaseUrl = process.env.NEON_DB_URL || process.env.DATABASE_URL;
   
   const headers = new Headers({
     'Content-Type': 'application/json; charset=utf-8',
     'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type',
   });
+
+  // پاسخ به درخواست‌های پیش‌پرواز (CORS)
+  if (request.method === 'OPTIONS') {
+    return new Response(null, { status: 204, headers });
+  }
 
   if (!databaseUrl) {
     return new Response(JSON.stringify({ 
-      error: 'دیتابیس متصل نیست!', 
-      details: 'لطفاً متغیری به نام NEON_DB_URL را در تنظیمات Vercel اضافه کنید.' 
+      error: 'اتصال برقرار نشد!', 
+      details: 'متغیر NEON_DB_URL یافت نشد. لطفاً در Vercel اضافه کنید.' 
     }), { status: 500, headers });
   }
 
-  const sql = neon(databaseUrl);
-
   try {
-    // ایجاد جدول در صورت عدم وجود
-    await sql`CREATE TABLE IF NOT EXISTS app_state (id INT PRIMARY KEY, content JSONB NOT NULL, updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP)`;
+    const sql = neon(databaseUrl);
+    
+    // اطمینان از وجود جدول
+    await sql`CREATE TABLE IF NOT EXISTS app_state (
+      id INT PRIMARY KEY, 
+      content JSONB NOT NULL, 
+      updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    )`;
 
     if (request.method === 'GET') {
       const rows = await sql`SELECT content FROM app_state WHERE id = 1 LIMIT 1`;
@@ -55,12 +66,12 @@ export default async function handler(request: Request) {
       return new Response(JSON.stringify({ success: true }), { status: 200, headers });
     }
 
-    return new Response(JSON.stringify({ error: 'Method not allowed' }), { status: 405, headers });
+    return new Response(JSON.stringify({ error: 'متد نامعتبر است' }), { status: 405, headers });
   } catch (error: any) {
-    console.error('Database Operation Error:', error);
+    console.error('Neon DB Error:', error);
     return new Response(JSON.stringify({ 
-      error: 'خطای عملیاتی در دیتابیس Neon', 
-      details: error.message 
+      error: 'خطای دیتابیس', 
+      details: error.message || 'خطای ناشناخته در ارتباط با سرور Neon'
     }), { status: 500, headers });
   }
 }
