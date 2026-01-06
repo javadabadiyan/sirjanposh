@@ -17,6 +17,7 @@ const App: React.FC = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [data, setData] = useState<AppData | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [currentUser, setCurrentUser] = useState<User | null>(() => {
     try {
       const saved = localStorage.getItem(SESSION_KEY);
@@ -27,7 +28,6 @@ const App: React.FC = () => {
   });
   const [activeTab, setActiveTab] = useState('dashboard');
 
-  // ذخیره کاربر در LocalStorage به محض تغییر
   useEffect(() => {
     if (currentUser) {
       localStorage.setItem(SESSION_KEY, JSON.stringify(currentUser));
@@ -40,13 +40,11 @@ const App: React.FC = () => {
     try {
       setIsLoading(true);
       setErrorMsg(null);
-      
       const response = await fetch('/api/data');
       if (!response.ok) {
         const errJson = await response.json();
         throw new Error(errJson.error || `خطای سرور: ${response.status}`);
       }
-      
       const result = await response.json();
       setData(result);
     } catch (err: any) {
@@ -63,7 +61,6 @@ const App: React.FC = () => {
   const updateData = async (newData: AppData) => {
     setData(newData);
     setIsSaving(true);
-    
     try {
       const response = await fetch('/api/data', {
         method: 'POST',
@@ -73,23 +70,12 @@ const App: React.FC = () => {
         },
         body: JSON.stringify(newData)
       });
-      
       const responseText = await response.text();
       let result;
-      try {
-        result = JSON.parse(responseText);
-      } catch (e) {
-        throw new Error('پاسخ سرور معتبر نیست. احتمالاً دیتابیس متصل نیست.');
-      }
-
-      if (!response.ok) {
-        throw new Error(result.error || 'خطا در ثبت اطلاعات در دیتابیس ابری');
-      }
-
-      console.log('Data saved successfully');
+      try { result = JSON.parse(responseText); } catch (e) { throw new Error('پاسخ سرور معتبر نیست.'); }
+      if (!response.ok) throw new Error(result.error || 'خطا در ثبت اطلاعات');
     } catch (err: any) {
-      console.error('Save error:', err);
-      alert(`⚠️ متاسفانه ذخیره نشد: ${err.message}\nلطفاً از بخش تنظیمات، فایل پشتیبان تهیه کنید تا اطلاعاتتان از دست نرود.`);
+      alert(`⚠️ ذخیره نشد: ${err.message}`);
     } finally {
       setIsSaving(false);
     }
@@ -99,14 +85,15 @@ const App: React.FC = () => {
     if (confirm('آیا قصد خروج از سامانه را دارید؟')) {
       setCurrentUser(null);
       localStorage.removeItem(SESSION_KEY);
+      setIsMobileMenuOpen(false);
     }
   };
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-slate-900 text-white">
-        <div className="text-7xl animate-bounce mb-4">👕</div>
-        <div className="text-xl font-bold animate-pulse">در حال فراخوانی اطلاعات...</div>
+      <div className="min-h-screen flex flex-col items-center justify-center bg-slate-900 text-white text-center p-6">
+        <div className="text-7xl animate-bounce mb-6">👕</div>
+        <div className="text-xl font-black animate-pulse">در حال فراخوانی اطلاعات سیرجان پوش...</div>
       </div>
     );
   }
@@ -114,40 +101,31 @@ const App: React.FC = () => {
   if (errorMsg) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50 p-6" dir="rtl">
-        <div className="bg-white p-10 rounded-[3rem] shadow-2xl border border-red-100 max-w-lg w-full text-center">
+        <div className="bg-white p-8 md:p-10 rounded-[3rem] shadow-2xl border border-red-100 max-w-lg w-full text-center">
           <div className="text-5xl mb-4">⚠️</div>
           <h2 className="text-2xl font-black text-slate-800 mb-4">خطا در اتصال به دیتابیس</h2>
           <p className="text-red-600 font-bold mb-6 text-sm">{errorMsg}</p>
-          <div className="bg-slate-50 p-4 rounded-2xl text-xs text-slate-500 font-bold mb-6 text-right leading-relaxed">
-            ۱. وارد پنل Vercel شوید.<br/>
-            ۲. به بخش <b>Settings &rarr; Environment Variables</b> بروید.<br/>
-            ۳. متغیر <b>NEON_DB_URL</b> را با لینک دیتابیس Neon مقداردهی کنید.<br/>
-            ۴. پروژه را <b>Redeploy</b> کنید.
-          </div>
-          <button onClick={loadData} className="w-full bg-indigo-600 text-white py-4 rounded-2xl font-black">تلاش دوباره 🔄</button>
+          <button onClick={loadData} className="w-full bg-indigo-600 text-white py-4 rounded-2xl font-black shadow-xl">تلاش دوباره 🔄</button>
         </div>
       </div>
     );
   }
 
-  // اگر کاربر لاگین نکرده باشد، صفحه لاگین نشان داده می‌شود
   if (!currentUser) {
     return <Login onLogin={setCurrentUser} users={data?.users || []} />;
   }
 
-  // اگر کاربر لاگین کرده ولی دیتایی نیست (مثلاً در حال لود مجدد بعد از خطا)
-  if (!data) {
-     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-900 text-white">
-        <div className="text-xl font-bold animate-pulse">در حال آماده‌سازی پنل...</div>
-      </div>
-    );
-  }
+  if (!data) return null;
 
   const canAccess = (tab: string) => currentUser.role === 'admin' || currentUser.permissions?.includes(tab);
 
+  const handleTabChange = (tab: string) => {
+    setActiveTab(tab);
+    setIsMobileMenuOpen(false);
+  };
+
   return (
-    <div className="flex min-h-screen bg-[#f8fafc] text-slate-800" dir="rtl">
+    <div className="flex min-h-screen bg-[#f8fafc] text-slate-800 relative" dir="rtl">
       {isSaving && (
         <div className="saving-loader">
           <span className="w-3 h-3 bg-indigo-500 rounded-full animate-ping"></span>
@@ -155,25 +133,55 @@ const App: React.FC = () => {
         </div>
       )}
 
-      <aside className="hidden lg:flex flex-col w-80 bg-slate-900 text-white fixed h-full shadow-2xl">
+      {/* منوی کناری دسکتاپ */}
+      <aside className="hidden lg:flex flex-col w-80 bg-slate-900 text-white fixed h-full shadow-2xl z-40">
         <Sidebar 
           activeTab={activeTab} 
-          setActiveTab={setActiveTab} 
+          setActiveTab={handleTabChange} 
           onLogout={handleLogout} 
           permissions={currentUser.role === 'admin' ? undefined : currentUser.permissions} 
         />
       </aside>
 
+      {/* منوی متحرک موبایل (Drawer) */}
+      <div className={`fixed inset-0 z-[100] lg:hidden transition-all duration-500 ${isMobileMenuOpen ? 'visible' : 'invisible'}`}>
+        {/* Backdrop */}
+        <div 
+          className={`absolute inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity duration-500 ${isMobileMenuOpen ? 'opacity-100' : 'opacity-0'}`}
+          onClick={() => setIsMobileMenuOpen(false)}
+        />
+        {/* Drawer Content */}
+        <aside className={`absolute top-0 right-0 h-full w-80 bg-slate-900 shadow-2xl transition-transform duration-500 ease-out ${isMobileMenuOpen ? 'translate-x-0' : 'translate-x-full'}`}>
+          <Sidebar 
+            activeTab={activeTab} 
+            setActiveTab={handleTabChange} 
+            onLogout={handleLogout} 
+            permissions={currentUser.role === 'admin' ? undefined : currentUser.permissions} 
+          />
+        </aside>
+      </div>
+
       <div className="flex-1 lg:mr-80 min-h-screen flex flex-col">
-        <header className="lg:hidden bg-white border-b px-5 py-4 flex justify-between items-center sticky top-0 z-30 shadow-sm">
+        {/* هدر موبایل اصلاح شده */}
+        <header className="lg:hidden bg-white border-b px-6 py-5 flex justify-between items-center sticky top-0 z-30 shadow-sm backdrop-blur-md bg-white/90">
           <div className="flex items-center gap-3">
-            <div className="bg-indigo-600 w-8 h-8 rounded-lg flex items-center justify-center text-sm">👕</div>
-            <h1 className="text-base font-black">سیرجان پوش</h1>
+            <button 
+              onClick={() => setIsMobileMenuOpen(true)}
+              className="w-12 h-12 flex items-center justify-center bg-slate-50 rounded-2xl text-xl shadow-inner border border-slate-100"
+            >
+              ☰
+            </button>
+            <div className="flex items-center gap-2">
+              <div className="bg-indigo-600 w-8 h-8 rounded-lg flex items-center justify-center text-xs text-white">👕</div>
+              <h1 className="text-lg font-black tracking-tight">سیرجان پوش</h1>
+            </div>
           </div>
-          <button onClick={handleLogout} className="text-red-500 font-black text-xs px-3 py-2 bg-red-50 rounded-lg">خروج</button>
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] font-black text-slate-400 bg-slate-50 px-3 py-1.5 rounded-full">{currentUser.username}</span>
+          </div>
         </header>
 
-        <main className="p-4 md:p-8 lg:p-10">
+        <main className="p-4 md:p-8 lg:p-10 overflow-x-hidden">
           {activeTab === 'dashboard' && <Dashboard data={data} />}
           {activeTab === 'inventory' && canAccess('inventory') && <Inventory data={data} setData={updateData} currentUser={currentUser} />}
           {activeTab === 'partners' && canAccess('partners') && <Partners data={data} setData={updateData} />}
