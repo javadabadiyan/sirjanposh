@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { AppData, Partner, PaymentHistory, InvestmentRecord } from '../types';
 import { formatCurrency, toPersianNumbers, getCurrentJalaliDate, parseRawNumber, toEnglishDigits, formatWithCommas } from '../utils/formatters';
+import DatePicker from './DatePicker';
 
 interface PartnersProps {
   data: AppData;
@@ -322,7 +323,9 @@ const Partners: React.FC<PartnersProps> = ({ data, setData }) => {
                     {!editingPartner && (
                       <div className="space-y-1.5"><label className="text-[10px] font-black text-slate-500 uppercase mr-2">سرمایه اولیه</label><input required className="w-full p-4.5 bg-white border-2 border-slate-100 rounded-2xl outline-none focus:border-indigo-500 font-black text-center" value={toPersianNumbers(formatWithCommas(partnerForm.initialAmount))} onChange={e=>handleNumericChange(setPartnerForm, 'initialAmount', e.target.value)} /></div>
                     )}
-                    <div className="space-y-1.5"><label className="text-[10px] font-black text-slate-500 uppercase mr-2">تاریخ عضویت (فارسی)</label><input required className="w-full p-4.5 bg-white border-2 border-slate-100 rounded-2xl outline-none focus:border-indigo-500 font-black text-center" value={toPersianNumbers(partnerForm.initialDate)} onChange={e=>setPartnerForm({...partnerForm, initialDate: e.target.value})} /></div>
+                    <div className="space-y-1.5">
+                      <DatePicker label="تاریخ عضویت" value={partnerForm.initialDate} onChange={val => setPartnerForm({...partnerForm, initialDate: val})} accentColor="indigo" />
+                    </div>
                   </div>
                   <button type="submit" className="w-full bg-indigo-600 text-white py-5 rounded-2xl font-black text-lg md:text-xl shadow-xl min-h-[60px] active:scale-95 transition-all mt-4">{editingPartner ? 'ثبت تغییرات' : 'ایجاد حساب شریک'}</button>
                 </form>
@@ -331,7 +334,9 @@ const Partners: React.FC<PartnersProps> = ({ data, setData }) => {
               {showInvestmentModal && (
                 <form onSubmit={saveInvestment} className="space-y-6">
                   <div className="space-y-1.5"><label className="text-[10px] font-black text-slate-500 uppercase mr-2">مبلغ واریزی (تومان)</label><input required className="w-full p-5 bg-white border-2 border-slate-100 rounded-2xl outline-none focus:border-emerald-500 font-black text-center text-2xl text-emerald-600" value={toPersianNumbers(formatWithCommas(invForm.amount))} onChange={e=>handleNumericChange(setInvForm, 'amount', e.target.value)} /></div>
-                  <div className="space-y-1.5"><label className="text-[10px] font-black text-slate-500 uppercase mr-2">تاریخ واریز سرمایه (فارسی)</label><input required className="w-full p-4.5 bg-white border-2 border-slate-100 rounded-2xl outline-none focus:border-emerald-500 font-black text-center" value={toPersianNumbers(invForm.date)} onChange={e=>setInvForm({...invForm, date: e.target.value})} /></div>
+                  <div className="space-y-1.5">
+                    <DatePicker label="تاریخ واریز سرمایه" value={invForm.date} onChange={val => setInvForm({...invForm, date: val})} accentColor="emerald" />
+                  </div>
                   <button type="submit" className="w-full bg-emerald-600 text-white py-5 rounded-2xl font-black text-lg md:text-xl shadow-xl min-h-[60px] active:scale-95 transition-all mt-4">تایید واریز وجه ✅</button>
                 </form>
               )}
@@ -356,7 +361,9 @@ const Partners: React.FC<PartnersProps> = ({ data, setData }) => {
               {editingInvestmentRecord && (
                 <form onSubmit={saveEditedInvestment} className="space-y-6">
                   <div className="space-y-1.5"><label className="text-[10px] font-black text-slate-500 uppercase mr-2">مبلغ واریزی</label><input required className="w-full p-4.5 bg-white border-2 border-slate-100 rounded-2xl outline-none focus:border-orange-500 font-black text-center" value={toPersianNumbers(formatWithCommas(editInvForm.amount))} onChange={e=>handleNumericChange(setEditInvForm, 'amount', e.target.value)} /></div>
-                  <div className="space-y-1.5"><label className="text-[10px] font-black text-slate-500 uppercase mr-2">تغییر تاریخ (فارسی)</label><input required className="w-full p-4.5 bg-white border-2 border-slate-100 rounded-2xl outline-none focus:border-orange-500 font-black text-center" value={toPersianNumbers(editInvForm.date)} onChange={e=>setEditInvForm({...editInvForm, date: e.target.value})} /></div>
+                  <div className="space-y-1.5">
+                    <DatePicker label="تغییر تاریخ این واریزی" value={editInvForm.date} onChange={val => setEditInvForm({...editInvForm, date: val})} accentColor="orange" />
+                  </div>
                   <div className="flex gap-2">
                     <button type="submit" className="flex-2 bg-orange-600 text-white py-4 rounded-2xl font-black shadow-lg">ذخیره تغییرات 💾</button>
                     <button type="button" onClick={() => setEditingInvestmentRecord(null)} className="flex-1 bg-slate-100 text-slate-500 rounded-2xl font-bold">بازگشت</button>
@@ -369,7 +376,9 @@ const Partners: React.FC<PartnersProps> = ({ data, setData }) => {
                   <div className="space-y-1.5"><label className="text-[10px] font-black text-slate-500 uppercase mr-2">مبلغ واریز شده (تومان)</label><input required className="w-full p-5 bg-white border-2 border-slate-100 rounded-2xl outline-none focus:border-blue-500 font-black text-center text-2xl text-blue-600" value={toPersianNumbers(formatWithCommas(paymentEditForm.amount))} onChange={e=>handleNumericChange(setPaymentEditForm, 'amount', e.target.value)} /></div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="space-y-1.5"><label className="text-[10px] font-black text-slate-500 uppercase mr-2">دوره</label><input required className="w-full p-4.5 bg-white border-2 border-slate-100 rounded-2xl font-black text-center" value={toPersianNumbers(paymentEditForm.period)} onChange={e=>setPaymentEditForm({...paymentEditForm, period: e.target.value})} /></div>
-                    <div className="space-y-1.5"><label className="text-[10px] font-black text-slate-500 uppercase mr-2">تاریخ تسویه</label><input required className="w-full p-4.5 bg-white border-2 border-slate-100 rounded-2xl font-black text-center" value={toPersianNumbers(paymentEditForm.date)} onChange={e=>setPaymentEditForm({...paymentEditForm, date: e.target.value})} /></div>
+                    <div className="space-y-1.5">
+                      <DatePicker label="تاریخ تسویه" value={paymentEditForm.date} onChange={val => setPaymentEditForm({...paymentEditForm, date: val})} accentColor="blue" />
+                    </div>
                   </div>
                   <button type="submit" className="w-full bg-blue-600 text-white py-5 rounded-2xl font-black text-lg md:text-xl shadow-xl min-h-[60px] active:scale-95 transition-all mt-4">ذخیره تغییرات تسویه 💾</button>
                 </form>

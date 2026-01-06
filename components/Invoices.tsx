@@ -2,6 +2,7 @@
 import React, { useState, useRef } from 'react';
 import { AppData, Invoice, InvoiceItem, Product } from '../types';
 import { formatCurrency, toPersianNumbers, getCurrentJalaliDate, formatWithCommas } from '../utils/formatters';
+import DatePicker from './DatePicker';
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
 
@@ -234,8 +235,7 @@ const Invoices: React.FC<InvoicesProps> = ({ data, setData }) => {
                   <input className="w-full p-4 bg-white border-2 border-slate-100 rounded-2xl font-bold outline-none focus:border-indigo-500 shadow-sm" value={customerAddress} onChange={e => setCustomerAddress(e.target.value)} />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-[10px] font-black text-slate-400 mr-2 uppercase">تاریخ فاکتور (فارسی)</label>
-                  <input className="w-full p-4 bg-white border-2 border-slate-100 rounded-2xl font-black text-center text-indigo-600 outline-none focus:border-indigo-500 shadow-sm" value={toPersianNumbers(invoiceDate)} onChange={e => setInvoiceDate(e.target.value)} />
+                  <DatePicker label="تاریخ فاکتور" value={invoiceDate} onChange={val => setInvoiceDate(val)} accentColor="indigo" />
                 </div>
               </div>
 

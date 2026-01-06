@@ -46,3 +46,17 @@ export const parseRawNumber = (str: string | number): number => {
   const engStr = toEnglishDigits(str);
   return Number(engStr.replace(/[^0-9,]/g, '').replace(/,/g, '')) || 0;
 };
+
+// توابع جدید برای تقویم
+export const getJalaliMonthDays = (year: number, month: number): number => {
+  if (month <= 6) return 31;
+  if (month <= 11) return 30;
+  // محاسبه سال کبیسه جلالی (ساده شده)
+  const isLeap = [1, 5, 9, 13, 17, 22, 26, 30].includes(year % 33);
+  return isLeap ? 30 : 29;
+};
+
+export const JALALI_MONTH_NAMES = [
+  'فروردین', 'اردیبهشت', 'خرداد', 'تیر', 'مرداد', 'شهریور',
+  'مهر', 'آبان', 'آذر', 'دی', 'بهمن', 'اسفند'
+];

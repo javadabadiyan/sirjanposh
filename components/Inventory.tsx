@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import { AppData, Product, User } from '../types';
 import { formatCurrency, toPersianNumbers, getCurrentJalaliDate, parseRawNumber, toEnglishDigits, formatWithCommas } from '../utils/formatters';
+import DatePicker from './DatePicker';
 import * as XLSX from 'xlsx';
 
 interface InventoryProps {
@@ -215,8 +216,7 @@ const Inventory: React.FC<InventoryProps> = ({ data, setData, currentUser }) => 
                     <input required type="text" className="w-full p-3.5 bg-white border-2 border-slate-100 rounded-xl outline-none focus:border-indigo-500 font-black text-center text-lg text-indigo-700" value={toPersianNumbers(formData.quantity)} onChange={e => handleNumericChange('quantity', e.target.value)} />
                   </div>
                   <div className="space-y-1">
-                    <label className="text-[9px] font-black text-slate-500 mr-2">تاریخ ثبت (فارسی)</label>
-                    <input required className="w-full p-3.5 bg-white border-2 border-slate-100 rounded-xl outline-none focus:border-indigo-500 font-black text-center" value={toPersianNumbers(formData.date)} onChange={e => setFormData({...formData, date: e.target.value})} />
+                    <DatePicker label="تاریخ ثبت" value={formData.date} onChange={val => setFormData({...formData, date: val})} accentColor="indigo" />
                   </div>
                 </div>
 
