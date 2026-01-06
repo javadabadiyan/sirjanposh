@@ -22,8 +22,6 @@ const Partners: React.FC<PartnersProps> = ({ data, setData }) => {
   const [showInvestmentModal, setShowInvestmentModal] = useState<Partner | null>(null);
   const [invForm, setInvForm] = useState({ amount: '', date: getCurrentJalaliDate() });
 
-  const [editingPayment, setEditingPayment] = useState<PaymentHistory | null>(null);
-
   const getPartnerTotalInvestment = (partner: Partner) => partner.investments.reduce((sum, inv) => sum + inv.amount, 0);
   const totalInvestment = data.partners.reduce((acc, p) => acc + getPartnerTotalInvestment(p), 0);
 
@@ -49,7 +47,7 @@ const Partners: React.FC<PartnersProps> = ({ data, setData }) => {
 
   const handlePayDividends = () => {
     const profit = parseRawNumber(monthlyProfit);
-    if (profit <= 0) return alert('سود صفر است.');
+    if (profit <= 0) return alert('سود دوره جاری صفر یا منفی است.');
 
     const newPayments: PaymentHistory[] = data.partners.map(p => ({
       id: Date.now().toString() + p.id,
@@ -66,14 +64,51 @@ const Partners: React.FC<PartnersProps> = ({ data, setData }) => {
 
   const savePartner = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!partnerForm.name) return alert('نام شریک الزامی است');
+
     const pData: Partner = {
       id: editingPartner ? editingPartner.id : Date.now().toString(),
       name: partnerForm.name,
-      investments: editingPartner ? editingPartner.investments : [{ id: '1', amount: parseRawNumber(partnerForm.initialAmount), date: partnerForm.initialDate }],
+      investments: editingPartner 
+        ? editingPartner.investments 
+        : [{ id: Date.now().toString(), amount: parseRawNumber(partnerForm.initialAmount), date: partnerForm.initialDate }],
       date: editingPartner ? editingPartner.date : partnerForm.initialDate
     };
-    setData({ ...data, partners: editingPartner ? data.partners.map(p => p.id === pData.id ? pData : p) : [...data.partners, pData] });
+
+    const updatedPartners = editingPartner 
+      ? data.partners.map(p => p.id === pData.id ? pData : p) 
+      : [...data.partners, pData];
+
+    setData({ ...data, partners: updatedPartners });
     setShowPartnerModal(false);
+    setEditingPartner(null);
+  };
+
+  const saveInvestment = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!showInvestmentModal) return;
+
+    const newInv: InvestmentRecord = {
+      id: Date.now().toString(),
+      amount: parseRawNumber(invForm.amount),
+      date: invForm.date
+    };
+
+    const updatedPartners = data.partners.map(p => {
+      if (p.id === showInvestmentModal.id) {
+        return { ...p, investments: [...p.investments, newInv] };
+      }
+      return p;
+    });
+
+    setData({ ...data, partners: updatedPartners });
+    setShowInvestmentModal(null);
+    setInvForm({ amount: '', date: getCurrentJalaliDate() });
+  };
+
+  const handleNumericChange = (setter: any, field: string, value: string) => {
+    const clean = toEnglishDigits(value).replace(/[^0-9]/g, '');
+    setter((prev: any) => ({ ...prev, [field]: clean }));
   };
 
   const filteredPartners = data.partners.filter(p => p.name.includes(partnerSearch));
@@ -91,27 +126,30 @@ const Partners: React.FC<PartnersProps> = ({ data, setData }) => {
         <div className="bg-white p-8 rounded-[3rem] shadow-sm border border-slate-100 flex flex-col h-[700px]">
           <div className="flex justify-between items-center mb-6">
             <h3 className="text-xl font-black text-slate-800">🤝 مدیریت شرکا</h3>
-            <button onClick={() => { setEditingPartner(null); setPartnerForm({name:'', initialAmount:'', initialDate: getCurrentJalaliDate()}); setShowPartnerModal(true); }} className="bg-indigo-600 text-white px-6 py-3 rounded-2xl font-black text-sm shadow-xl">+ شریک جدید</button>
+            <button onClick={() => { setEditingPartner(null); setPartnerForm({name:'', initialAmount:'', initialDate: getCurrentJalaliDate()}); setShowPartnerModal(true); }} className="bg-indigo-600 text-white px-6 py-3 rounded-2xl font-black text-sm shadow-xl hover:bg-indigo-700 transition-all">+ شریک جدید</button>
           </div>
-          <input placeholder="🔍 جستجوی شریک..." className="w-full p-4 mb-6 bg-slate-50 rounded-2xl border-none outline-none font-bold text-sm" value={partnerSearch} onChange={e => setPartnerSearch(e.target.value)} />
+          <div className="relative mb-6">
+            <input placeholder="🔍 جستجوی شریک..." className="w-full p-4 bg-slate-50 rounded-2xl border-none outline-none font-bold text-sm shadow-inner pr-12" value={partnerSearch} onChange={e => setPartnerSearch(e.target.value)} />
+            <span className="absolute right-4 top-1/2 -translate-y-1/2 opacity-30">🔍</span>
+          </div>
           
           <div className="flex-1 overflow-y-auto pr-2 space-y-4">
             {filteredPartners.map(p => (
-              <div key={p.id} className="p-6 bg-slate-50 rounded-[2rem] border-2 border-transparent hover:border-indigo-100 transition-all">
+              <div key={p.id} className="p-6 bg-slate-50 rounded-[2rem] border-2 border-transparent hover:border-indigo-100 transition-all group">
                 <div className="flex justify-between items-center mb-4">
                   <span className="text-lg font-black text-slate-800">{p.name}</span>
                   <span className="bg-indigo-600 text-white px-3 py-1 rounded-full text-[10px] font-black">
                     {toPersianNumbers(((getPartnerTotalInvestment(p)/totalInvestment)*100).toFixed(1))}٪ سهم
                   </span>
                 </div>
-                <div className="flex justify-between text-xs font-bold text-slate-500 mb-6">
+                <div className="flex justify-between text-xs font-bold text-slate-500 mb-6 bg-white/50 p-3 rounded-xl">
                   <span>کل سرمایه: {formatCurrency(getPartnerTotalInvestment(p))}</span>
-                  <span>تاریخ عضویت: {toPersianNumbers(p.date)}</span>
+                  <span>عضویت: {toPersianNumbers(p.date)}</span>
                 </div>
-                <div className="flex gap-2">
-                  <button onClick={() => setShowInvestmentModal(p)} className="flex-1 bg-white py-3 rounded-xl font-black text-[10px] text-emerald-600 shadow-sm">+ واریز سرمایه</button>
-                  <button onClick={() => { setEditingPartner(p); setPartnerForm({name: p.name, initialAmount: '', initialDate: p.date}); setShowPartnerModal(true); }} className="flex-1 bg-white py-3 rounded-xl font-black text-[10px] text-slate-500 shadow-sm">ویرایش نام</button>
-                  <button onClick={() => { if(confirm('حذف شود؟')) setData({...data, partners: data.partners.filter(i=>i.id!==p.id)}) }} className="bg-red-50 text-red-500 px-4 py-3 rounded-xl font-black text-[10px]">×</button>
+                <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <button onClick={() => { setInvForm({amount: '', date: getCurrentJalaliDate()}); setShowInvestmentModal(p); }} className="flex-1 bg-white py-3 rounded-xl font-black text-[10px] text-emerald-600 shadow-sm hover:bg-emerald-50">+ واریز سرمایه</button>
+                  <button onClick={() => { setEditingPartner(p); setPartnerForm({name: p.name, initialAmount: '', initialDate: p.date}); setShowPartnerModal(true); }} className="flex-1 bg-white py-3 rounded-xl font-black text-[10px] text-slate-500 shadow-sm hover:bg-slate-100">ویرایش نام</button>
+                  <button onClick={() => { if(confirm('با حذف شریک تمامی سوابق واریزی و سهم وی حذف می‌شود. مطمئن هستید؟')) setData({...data, partners: data.partners.filter(i=>i.id!==p.id)}) }} className="bg-red-50 text-red-500 px-4 py-3 rounded-xl font-black text-[10px] hover:bg-red-500 hover:text-white transition-all">×</button>
                 </div>
               </div>
             ))}
@@ -128,11 +166,11 @@ const Partners: React.FC<PartnersProps> = ({ data, setData }) => {
           <div className="grid grid-cols-2 gap-4 mb-8">
             <div className="space-y-2">
               <label className="text-xs font-black text-slate-400 mr-2">انتخاب ماه/سال</label>
-              <input className="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl font-black text-center" value={selectedPeriod} onChange={e=>setSelectedPeriod(e.target.value)} />
+              <input className="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl font-black text-center outline-none focus:border-indigo-500" value={selectedPeriod} onChange={e=>setSelectedPeriod(e.target.value)} />
             </div>
             <div className="space-y-2">
               <label className="text-xs font-black text-slate-400 mr-2">سود خالص (تومان)</label>
-              <input className="w-full p-4 bg-indigo-50 border-2 border-indigo-200 rounded-2xl font-black text-center text-indigo-700 text-lg" value={toPersianNumbers(formatWithCommas(monthlyProfit))} onChange={e=>{setMonthlyProfit(toEnglishDigits(e.target.value).replace(/,/g,'')); setIsAutoCalculating(false);}} />
+              <input className="w-full p-4 bg-indigo-50 border-2 border-indigo-200 rounded-2xl font-black text-center text-indigo-700 text-lg outline-none focus:border-indigo-500" value={toPersianNumbers(formatWithCommas(monthlyProfit))} onChange={e=>{setMonthlyProfit(toEnglishDigits(e.target.value).replace(/,/g,'')); setIsAutoCalculating(false);}} />
             </div>
           </div>
 
@@ -153,7 +191,9 @@ const Partners: React.FC<PartnersProps> = ({ data, setData }) => {
       <div className="bg-white p-8 rounded-[3rem] shadow-sm border border-slate-100">
         <div className="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
           <h3 className="text-xl font-black text-slate-800">📜 تاریخچه پرداخت‌ها (دوره‌های گذشته)</h3>
-          <input placeholder="🔍 جستجوی دوره یا نام شریک..." className="w-full md:w-80 p-4 bg-slate-50 rounded-2xl border-none outline-none font-bold text-sm" value={historySearch} onChange={e=>setHistorySearch(e.target.value)} />
+          <div className="relative w-full md:w-80">
+            <input placeholder="🔍 جستجوی دوره یا نام شریک..." className="w-full p-4 bg-slate-50 rounded-2xl border-none outline-none font-bold text-sm shadow-inner" value={historySearch} onChange={e=>setHistorySearch(e.target.value)} />
+          </div>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-right">
@@ -168,7 +208,7 @@ const Partners: React.FC<PartnersProps> = ({ data, setData }) => {
             </thead>
             <tbody className="divide-y divide-slate-50">
               {filteredHistory.map(pay => (
-                <tr key={pay.id} className="hover:bg-slate-50/50">
+                <tr key={pay.id} className="hover:bg-slate-50/50 transition-colors">
                   <td className="p-5 font-black text-slate-800">{data.partners.find(p=>p.id===pay.partnerId)?.name || 'شریک حذف شده'}</td>
                   <td className="p-5 text-center font-bold text-indigo-600">{toPersianNumbers(pay.period)}</td>
                   <td className="p-5 font-black text-emerald-600">{formatCurrency(pay.amount)}</td>
@@ -178,10 +218,77 @@ const Partners: React.FC<PartnersProps> = ({ data, setData }) => {
                   </td>
                 </tr>
               ))}
+              {filteredHistory.length === 0 && (
+                <tr><td colSpan={5} className="p-10 text-center text-slate-300 font-black">هیچ سابقه پرداختی یافت نشد.</td></tr>
+              )}
             </tbody>
           </table>
         </div>
       </div>
+
+      {/* مدال افزودن/ویرایش شریک */}
+      {showPartnerModal && (
+        <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-slate-900/90 backdrop-blur-md">
+          <div className="bg-white w-full max-w-lg rounded-[2.5rem] shadow-2xl overflow-hidden animate-fadeIn">
+            <div className="p-8 bg-indigo-600 text-white flex justify-between items-center">
+              <h3 className="text-2xl font-black">{editingPartner ? 'ویرایش اطلاعات شریک' : 'ثبت شریک جدید'}</h3>
+              <button onClick={() => setShowPartnerModal(false)} className="text-3xl">&times;</button>
+            </div>
+            <form onSubmit={savePartner} className="p-8 space-y-6">
+              <div className="space-y-1">
+                <label className="text-xs font-black text-slate-400 mr-2">نام و نام خانوادگی شریک</label>
+                <input required className="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl outline-none focus:border-indigo-500 font-bold" value={partnerForm.name} onChange={e=>setPartnerForm({...partnerForm, name: e.target.value})} />
+              </div>
+              
+              {!editingPartner && (
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <label className="text-xs font-black text-slate-400 mr-2">سرمایه اولیه (تومان)</label>
+                    <input required className="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl outline-none focus:border-indigo-500 font-black text-center" value={toPersianNumbers(formatWithCommas(partnerForm.initialAmount))} onChange={e=>handleNumericChange(setPartnerForm, 'initialAmount', e.target.value)} />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs font-black text-slate-400 mr-2">تاریخ ورود</label>
+                    <input required className="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl outline-none focus:border-indigo-500 font-black text-center" value={partnerForm.initialDate} onChange={e=>setPartnerForm({...partnerForm, initialDate: e.target.value})} />
+                  </div>
+                </div>
+              )}
+
+              <button type="submit" className="w-full bg-indigo-600 text-white py-5 rounded-2xl font-black text-xl hover:bg-indigo-700 transition-all shadow-xl active:scale-95">
+                {editingPartner ? 'ذخیره تغییرات' : 'ایجاد حساب شریک'}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* مدال واریز سرمایه جدید */}
+      {showInvestmentModal && (
+        <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-slate-900/90 backdrop-blur-md">
+          <div className="bg-white w-full max-w-lg rounded-[2.5rem] shadow-2xl overflow-hidden animate-fadeIn">
+            <div className="p-8 bg-emerald-600 text-white flex justify-between items-center">
+              <div className="flex flex-col">
+                <h3 className="text-2xl font-black">افزایش سرمایه</h3>
+                <p className="text-xs opacity-70 font-bold">شریک: {showInvestmentModal.name}</p>
+              </div>
+              <button onClick={() => setShowInvestmentModal(null)} className="text-3xl">&times;</button>
+            </div>
+            <form onSubmit={saveInvestment} className="p-8 space-y-6">
+              <div className="space-y-1">
+                <label className="text-xs font-black text-slate-400 mr-2">مبلغ واریزی جدید (تومان)</label>
+                <input required className="w-full p-5 bg-slate-50 border-2 border-slate-100 rounded-2xl outline-none focus:border-emerald-500 font-black text-center text-2xl text-emerald-700" value={toPersianNumbers(formatWithCommas(invForm.amount))} onChange={e=>handleNumericChange(setInvForm, 'amount', e.target.value)} />
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-black text-slate-400 mr-2">تاریخ واریز</label>
+                <input required className="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl outline-none focus:border-emerald-500 font-black text-center" value={invForm.date} onChange={e=>setInvForm({...invForm, date: e.target.value})} />
+              </div>
+
+              <button type="submit" className="w-full bg-emerald-600 text-white py-5 rounded-2xl font-black text-xl hover:bg-emerald-700 transition-all shadow-xl active:scale-95">
+                تایید واریز وجه ✅
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
