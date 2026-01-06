@@ -17,21 +17,18 @@ const INITIAL_DATA = {
 };
 
 export default async function handler(request: Request) {
-  const databaseUrl = 
-    process.env.DATABASE_URL || 
-    process.env.POSTGRES_URL || 
-    process.env.STORAGE_DATABASE_URL;
+  // ابتدا متغیر جدید ما را چک می‌کند، اگر نبود به سراغ متغیر پیش‌فرض می‌رود
+  const databaseUrl = process.env.NEON_DB_URL || process.env.DATABASE_URL;
   
   const headers = new Headers({
     'Content-Type': 'application/json; charset=utf-8',
     'Access-Control-Allow-Origin': '*',
-    'Cache-Control': 'no-store, no-cache, must-revalidate'
   });
 
   if (!databaseUrl) {
     return new Response(JSON.stringify({ 
-      error: 'اتصال به دیتابیس برقرار نشد',
-      details: 'لطفا DATABASE_URL را در بخش Environment Variables ورسل اضافه کنید.' 
+      error: 'دیتابیس متصل نیست!', 
+      details: 'لطفاً متغیری به نام NEON_DB_URL را در تنظیمات Vercel اضافه کنید.' 
     }), { status: 500, headers });
   }
 
@@ -48,13 +45,7 @@ export default async function handler(request: Request) {
     }
 
     if (request.method === 'POST') {
-      let body;
-      try {
-        body = await request.json();
-      } catch (e) {
-        return new Response(JSON.stringify({ error: 'داده‌های ارسالی نامعتبر است' }), { status: 400, headers });
-      }
-
+      const body = await request.json();
       await sql`
         INSERT INTO app_state (id, content, updated_at)
         VALUES (1, ${body}, CURRENT_TIMESTAMP)
@@ -64,12 +55,12 @@ export default async function handler(request: Request) {
       return new Response(JSON.stringify({ success: true }), { status: 200, headers });
     }
 
-    return new Response(JSON.stringify({ error: 'متد مجاز نیست' }), { status: 405, headers });
+    return new Response(JSON.stringify({ error: 'Method not allowed' }), { status: 405, headers });
   } catch (error: any) {
-    console.error('Neon Error:', error);
+    console.error('Database Operation Error:', error);
     return new Response(JSON.stringify({ 
-      error: 'خطای عملیاتی در دیتابیس', 
-      details: error?.message || 'Unknown error' 
+      error: 'خطای عملیاتی در دیتابیس Neon', 
+      details: error.message 
     }), { status: 500, headers });
   }
 }
