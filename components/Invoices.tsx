@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useRef } from 'react';
 import { AppData, Invoice, InvoiceItem } from '../types';
 import { formatCurrency, toPersianNumbers, getCurrentJalaliDate, formatWithCommas } from '../utils/formatters';
 import html2canvas from 'html2canvas';
@@ -19,19 +19,15 @@ const Invoices: React.FC<InvoicesProps> = ({ data, setData }) => {
   const [qty, setQty] = useState(1);
   const [searchTerm, setSearchTerm] = useState('');
   const [showPrintModal, setShowPrintModal] = useState<Invoice | null>(null);
-  const [isExporting, setIsExporting] = useState(false);
   
   const invoiceRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    if (editingInvoice) {
-      setCustomerName(editingInvoice.customerName);
-      setItems([...editingInvoice.items]);
-    } else {
-      setCustomerName('');
-      setItems([]);
-    }
-  }, [editingInvoice, showModal]);
+  const handleEdit = (inv: Invoice) => {
+    setEditingInvoice(inv);
+    setCustomerName(inv.customerName);
+    setItems([...inv.items]);
+    setShowModal(true);
+  };
 
   const addItem = () => {
     const product = data.products.find(p => p.id === selectedProduct);
@@ -54,300 +50,222 @@ const Invoices: React.FC<InvoicesProps> = ({ data, setData }) => {
     setSelectedProduct('');
   };
 
-  const removeItem = (index: number) => {
-    setItems(items.filter((_, i) => i !== index));
-  };
-
-  const editItemQuantity = (index: number) => {
-    const item = items[index];
-    const newQty = prompt(`تعداد جدید برای "${item.name}" را وارد کنید:`, item.quantity.toString());
-    if (newQty !== null) {
-      const val = parseInt(newQty);
-      if (!isNaN(val) && val > 0) {
-        const newItems = [...items];
-        newItems[index].quantity = val;
-        setItems(newItems);
-      }
-    }
-  };
-
-  const totalAmount = items.reduce((acc, item) => acc + (item.price * item.quantity), 0);
-
   const saveInvoice = () => {
     if (items.length === 0 || !customerName) {
-      alert('لطفاً نام مشتری و حداقل یک کالا را مشخص کنید.');
+      alert('لطفاً نام مشتری و حداقل یک کالا را وارد کنید.');
       return;
     }
 
-    const invoice: Invoice = {
+    const invData: Invoice = {
       id: editingInvoice ? editingInvoice.id : Date.now().toString(),
       customerName,
       items,
-      totalAmount,
+      totalAmount: items.reduce((acc, i) => acc + (i.price * i.quantity), 0),
       date: editingInvoice ? editingInvoice.date : getCurrentJalaliDate()
     };
 
     const updatedInvoices = editingInvoice 
-      ? data.invoices.map(inv => inv.id === editingInvoice.id ? invoice : inv)
-      : [...data.invoices, invoice];
+      ? data.invoices.map(inv => inv.id === editingInvoice.id ? invData : inv)
+      : [...data.invoices, invData];
 
     setData({ ...data, invoices: updatedInvoices });
     setShowModal(false);
     setEditingInvoice(null);
+    setItems([]);
+    setCustomerName('');
   };
 
-  const deleteInvoice = (id: string) => {
-    if (confirm('آیا از حذف این فاکتور اطمینان دارید؟')) {
-      setData({ ...data, invoices: data.invoices.filter(i => i.id !== id) });
-    }
-  };
-
-  const handleExport = async (type: 'pdf' | 'jpg') => {
+  const exportJPG = async () => {
     if (!invoiceRef.current) return;
-    setIsExporting(true);
-    
-    // پنهان کردن دکمه‌ها برای عکس گرفتن تمیز
-    const element = invoiceRef.current;
-    
-    try {
-      // استفاده از مقیاس 3 برای کیفیت بالا در چاپ A4
-      const canvas = await html2canvas(element, { 
-        scale: 3, 
-        useCORS: true,
-        backgroundColor: '#ffffff',
-        logging: false
-      });
+    const canvas = await html2canvas(invoiceRef.current, { scale: 2 });
+    const link = document.createElement('a');
+    link.download = `Invoice-${showPrintModal?.id.slice(-4)}.jpg`;
+    link.href = canvas.toDataURL('image/jpeg', 0.9);
+    link.click();
+  };
 
-      if (type === 'jpg') {
-        const link = document.createElement('a');
-        link.download = `Invoice-SirjanPoosh-${toPersianNumbers(showPrintModal?.id.slice(-5) || '')}.jpg`;
-        link.href = canvas.toDataURL('image/jpeg', 0.95);
-        link.click();
-      } else {
-        const imgData = canvas.toDataURL('image/png');
-        // ایجاد PDF در ابعاد A4
-        const pdf = new jsPDF('p', 'mm', 'a4');
-        const pdfWidth = pdf.internal.pageSize.getWidth();
-        const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-        
-        pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-        pdf.save(`Invoice-SirjanPoosh-${toPersianNumbers(showPrintModal?.id.slice(-5) || '')}.pdf`);
-      }
-    } catch (e) { 
-      console.error(e);
-      alert('خطا در تولید فایل خروجی. لطفاً دوباره تلاش کنید.'); 
-    }
-    setIsExporting(false);
+  const exportPDF = async () => {
+    if (!invoiceRef.current) return;
+    const canvas = await html2canvas(invoiceRef.current, { scale: 2 });
+    const imgData = canvas.toDataURL('image/png');
+    const pdf = new jsPDF('p', 'mm', 'a4');
+    const imgProps = pdf.getImageProperties(imgData);
+    const pdfWidth = pdf.internal.pageSize.getWidth();
+    const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+    pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+    pdf.save(`Invoice-${showPrintModal?.id.slice(-4)}.pdf`);
   };
 
   const filtered = data.invoices.filter(i => i.customerName.includes(searchTerm)).reverse();
 
   return (
-    <div className="space-y-6 animate-fadeIn pb-20 lg:pb-0">
-      <div className="flex flex-col md:flex-row justify-between items-center gap-4 bg-white p-4 md:p-6 rounded-[2rem] shadow-sm border">
-        <input 
-          type="text" 
-          placeholder="🔍 جستجوی مشتری..." 
-          className="w-full md:w-80 p-4 bg-gray-50 border-2 border-transparent focus:border-indigo-500 rounded-2xl outline-none font-bold"
-          value={searchTerm}
-          onChange={e => setSearchTerm(e.target.value)}
-        />
-        <button 
-          onClick={() => { setEditingInvoice(null); setShowModal(true); }}
-          className="w-full md:w-auto bg-indigo-600 text-white px-8 py-4 rounded-2xl font-black hover:bg-indigo-700 shadow-lg active:scale-95 transition-all"
-        >
-          + صدور فاکتور جدید
-        </button>
+    <div className="space-y-6 animate-slide-up pb-24 px-4 lg:px-0">
+      <div className="flex flex-col md:flex-row justify-between items-center gap-4 bg-white/80 backdrop-blur-md p-6 rounded-[2.5rem] shadow-xl shadow-slate-200/50 border border-white">
+        <div className="relative w-full md:w-96">
+          <input placeholder="🔍 جستجوی فاکتور یا مشتری..." className="w-full pr-12 py-4 bg-slate-100/50 border-2 border-transparent rounded-2xl font-bold outline-none focus:border-indigo-500 transition-all" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+          <span className="absolute right-4 top-1/2 -translate-y-1/2 opacity-30">🔍</span>
+        </div>
+        <button onClick={() => { setEditingInvoice(null); setCustomerName(''); setItems([]); setShowModal(true); }} className="w-full md:w-auto bg-indigo-600 text-white px-10 py-4 rounded-2xl font-black shadow-xl hover:bg-indigo-700 hover:-translate-y-1 transition-all active:scale-95 text-lg">+ صدور فاکتور جدید</button>
       </div>
 
-      <div className="bg-white rounded-[2rem] shadow-sm border overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-right">
-            <thead className="bg-indigo-900 text-white text-xs md:text-sm">
-              <tr>
-                <th className="p-5">شماره</th>
-                <th className="p-5">مشتری</th>
-                <th className="p-5 text-center">تاریخ</th>
-                <th className="p-5">مبلغ کل</th>
-                <th className="p-5 text-center">عملیات</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {filtered.map(inv => (
-                <tr key={inv.id} className="hover:bg-indigo-50/30 transition-colors">
-                  <td className="p-5 font-black text-indigo-600">#{toPersianNumbers(inv.id.slice(-5))}</td>
-                  <td className="p-5 font-bold">{inv.customerName}</td>
-                  <td className="p-5 text-center text-xs text-gray-400 font-bold">{toPersianNumbers(inv.date)}</td>
-                  <td className="p-5 font-black text-green-700">{formatCurrency(inv.totalAmount)}</td>
-                  <td className="p-5">
-                    <div className="flex justify-center gap-2">
-                      <button onClick={() => setShowPrintModal(inv)} className="p-2 bg-gray-100 rounded-xl hover:bg-indigo-600 hover:text-white transition" title="مشاهده و چاپ">👁️</button>
-                      <button onClick={() => { setEditingInvoice(inv); setShowModal(true); }} className="p-2 bg-blue-50 text-blue-600 rounded-xl hover:bg-blue-600 hover:text-white transition" title="ویرایش">📝</button>
-                      <button onClick={() => deleteInvoice(inv.id)} className="p-2 bg-red-50 text-red-500 rounded-xl hover:bg-red-600 hover:text-white transition" title="حذف">🗑️</button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {filtered.map(inv => (
+          <div key={inv.id} className="bg-white p-8 rounded-[3rem] shadow-lg border border-slate-100 hover:shadow-2xl transition-all group overflow-hidden relative">
+            <div className="absolute top-0 right-0 w-2 h-full bg-indigo-600 group-hover:w-4 transition-all"></div>
+            <div className="flex justify-between items-start mb-6">
+              <div>
+                <p className="text-[10px] font-black text-indigo-500 mb-1 uppercase tracking-widest">فاکتور #{toPersianNumbers(inv.id.slice(-4))}</p>
+                <h4 className="text-xl font-black text-slate-800">{inv.customerName}</h4>
+              </div>
+              <span className="text-[10px] font-bold text-slate-400 bg-slate-50 px-3 py-1 rounded-full">{toPersianNumbers(inv.date)}</span>
+            </div>
+            
+            <div className="bg-slate-50 p-5 rounded-2xl mb-8">
+              <p className="text-[9px] font-black text-slate-400 mb-1">مبلغ نهایی</p>
+              <p className="text-2xl font-black text-emerald-600">{formatCurrency(inv.totalAmount)}</p>
+            </div>
+
+            <div className="flex gap-2">
+              <button onClick={() => setShowPrintModal(inv)} className="flex-1 bg-indigo-50 text-indigo-600 py-3 rounded-xl font-black text-xs hover:bg-indigo-600 hover:text-white transition-all">👁️ مشاهده</button>
+              <button onClick={() => handleEdit(inv)} className="flex-1 bg-blue-50 text-blue-600 py-3 rounded-xl font-black text-xs hover:bg-blue-600 hover:text-white transition-all">📝 ویرایش</button>
+              <button onClick={() => { if(confirm('حذف فاکتور؟')) setData({...data, invoices: data.invoices.filter(i=>i.id!==inv.id)}) }} className="bg-red-50 text-red-500 px-4 py-3 rounded-xl font-black text-sm">🗑️</button>
+            </div>
+          </div>
+        ))}
       </div>
 
       {showModal && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-md flex items-center justify-center p-2 md:p-4 z-[100]">
-          <div className="bg-white rounded-[2.5rem] w-full max-w-3xl max-h-[95vh] flex flex-col overflow-hidden animate-fadeIn border-4 border-white shadow-2xl">
-            <div className="p-6 md:p-8 bg-indigo-950 text-white flex justify-between items-center">
-              <h3 className="text-xl md:text-2xl font-black">{editingInvoice ? 'ویرایش فاکتور' : 'صدور فاکتور'}</h3>
-              <button onClick={() => setShowModal(false)} className="text-3xl text-indigo-300">&times;</button>
+        <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-lg flex items-center justify-center p-0 md:p-4 z-[100]">
+          <div className="bg-white w-full h-full md:h-auto md:max-h-[95vh] md:max-w-4xl md:rounded-[3.5rem] flex flex-col overflow-hidden shadow-2xl animate-slide-up">
+            <div className="p-8 bg-slate-900 text-white flex justify-between items-center shrink-0">
+              <div className="flex items-center gap-4">
+                <div className="text-3xl bg-indigo-600 p-3 rounded-2xl">📜</div>
+                <div>
+                  <h3 className="text-2xl font-black">{editingInvoice ? 'ویرایش فاکتور' : 'صدور فاکتور جدید'}</h3>
+                  <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Invoicing System v2</p>
+                </div>
+              </div>
+              <button onClick={() => setShowModal(false)} className="w-12 h-12 flex items-center justify-center bg-white/10 rounded-2xl text-2xl hover:bg-red-500 transition-all">&times;</button>
             </div>
             
-            <div className="p-4 md:p-8 overflow-y-auto flex-1 space-y-6 custom-scrollbar">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <input placeholder="نام مشتری..." className="p-4 bg-gray-50 border-2 border-gray-100 rounded-2xl font-bold outline-none focus:border-indigo-500" value={customerName} onChange={e => setCustomerName(e.target.value)} />
-                <input className="p-4 bg-gray-100 border-2 border-transparent rounded-2xl font-bold text-center text-gray-400" readOnly value={editingInvoice ? toPersianNumbers(editingInvoice.date) : getCurrentJalaliDate()} />
+            <div className="p-8 overflow-y-auto flex-1 space-y-8 bg-slate-50/30">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <label className="text-xs font-black text-slate-400 mr-2">نام مشتری</label>
+                  <input placeholder="نام و نام خانوادگی مشتری..." className="w-full p-5 bg-white border-2 border-slate-100 rounded-2xl font-black outline-none focus:border-indigo-500 shadow-sm" value={customerName} onChange={e => setCustomerName(e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-xs font-black text-slate-400 mr-2">تاریخ ثبت</label>
+                  <input className="w-full p-5 bg-white border-2 border-slate-100 rounded-2xl font-black text-center text-slate-400" readOnly value={toPersianNumbers(editingInvoice ? editingInvoice.date : getCurrentJalaliDate())} />
+                </div>
               </div>
 
-              <div className="bg-indigo-50 p-4 md:p-6 rounded-3xl border-2 border-dashed border-indigo-200 space-y-4">
-                <p className="text-xs font-black text-indigo-900">افزودن کالا به لیست</p>
-                <div className="flex flex-col md:flex-row gap-2">
-                  <select className="flex-1 p-4 bg-white rounded-xl font-bold text-sm outline-none" value={selectedProduct} onChange={e => setSelectedProduct(e.target.value)}>
-                    <option value="">انتخاب از انبار...</option>
-                    {data.products.map(p => <option key={p.id} value={p.id}>{p.name} ({formatCurrency(p.sellPrice)})</option>)}
+              <div className="bg-indigo-600 p-8 rounded-[3rem] shadow-xl shadow-indigo-200">
+                <h4 className="text-white font-black mb-6 flex items-center gap-2">🛒 افزودن کالا به لیست</h4>
+                <div className="flex flex-col md:flex-row gap-4">
+                  <select className="flex-1 p-5 rounded-2xl font-black outline-none shadow-inner" value={selectedProduct} onChange={e => setSelectedProduct(e.target.value)}>
+                    <option value="">🛒 انتخاب از انبار کالا...</option>
+                    {data.products.map(p => <option key={p.id} value={p.id}>{p.name} ({formatCurrency(p.sellPrice)}) - موجود: {toPersianNumbers(p.quantity)}</option>)}
                   </select>
                   <div className="flex gap-2">
-                    <input type="number" className="w-20 p-4 bg-white rounded-xl text-center font-black" value={qty} onChange={e => setQty(Number(e.target.value))} />
-                    <button onClick={addItem} className="bg-indigo-600 text-white px-6 rounded-xl font-black">افزودن</button>
+                    <input type="number" min="1" className="w-24 p-5 rounded-2xl text-center font-black shadow-inner" value={qty} onChange={e => setQty(Number(e.target.value))} />
+                    <button onClick={addItem} className="bg-slate-900 text-white px-8 py-5 rounded-2xl font-black hover:bg-black transition-all shadow-lg active:scale-95">افزودن</button>
                   </div>
                 </div>
               </div>
 
-              <div className="border rounded-2xl overflow-hidden">
-                <table className="w-full text-right text-xs md:text-sm">
-                  <thead className="bg-gray-50 text-gray-400 font-black">
-                    <tr>
-                      <th className="p-4">کالا</th>
-                      <th className="p-4 text-center">تعداد</th>
-                      <th className="p-4">جمع</th>
-                      <th className="p-4 text-center">عملیات</th>
+              <div className="bg-white border-2 border-slate-100 rounded-[3rem] overflow-hidden shadow-sm">
+                <table className="w-full text-right">
+                  <thead className="bg-slate-900 text-white">
+                    <tr className="text-[11px] font-black uppercase">
+                      <th className="p-5">شرح کالا</th>
+                      <th className="p-5 text-center">تعداد</th>
+                      <th className="p-5 text-center">قیمت واحد</th>
+                      <th className="p-5">جمع</th>
+                      <th className="p-5 text-center">حذف</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y">
+                  <tbody className="divide-y divide-slate-50 font-bold">
                     {items.map((item, idx) => (
-                      <tr key={idx}>
-                        <td className="p-4 font-bold">{item.name}</td>
-                        <td className="p-4 text-center font-black text-indigo-600">{toPersianNumbers(item.quantity)}</td>
-                        <td className="p-4 font-black">{formatCurrency(item.price * item.quantity)}</td>
-                        <td className="p-4">
-                          <div className="flex justify-center gap-2">
-                            <button onClick={() => editItemQuantity(idx)} className="text-blue-500">📝</button>
-                            <button onClick={() => removeItem(idx)} className="text-red-400">🗑️</button>
-                          </div>
+                      <tr key={idx} className="hover:bg-slate-50">
+                        <td className="p-5 font-black">{item.name}</td>
+                        <td className="p-5 text-center">{toPersianNumbers(item.quantity)}</td>
+                        <td className="p-5 text-center text-xs">{formatCurrency(item.price)}</td>
+                        <td className="p-5 font-black text-indigo-600">{formatCurrency(item.price * item.quantity)}</td>
+                        <td className="p-5 text-center">
+                          <button onClick={() => setItems(items.filter((_,i)=>i!==idx))} className="text-red-400 hover:text-red-600 text-xl font-black">×</button>
                         </td>
                       </tr>
                     ))}
+                    {items.length === 0 && (
+                      <tr><td colSpan={5} className="p-10 text-center text-slate-300 font-black">هنوز کالایی به فاکتور اضافه نشده است.</td></tr>
+                    )}
                   </tbody>
                 </table>
               </div>
             </div>
 
-            <div className="p-6 md:p-8 bg-gray-50 border-t flex flex-col md:flex-row justify-between items-center gap-4">
+            <div className="p-8 bg-white border-t border-slate-100 flex flex-col md:flex-row justify-between items-center gap-6 shrink-0">
               <div className="text-center md:text-right">
-                <p className="text-[10px] font-black text-gray-400 uppercase">مبلغ نهایی فاکتور:</p>
-                <div className="text-2xl font-black text-indigo-950">{formatCurrency(totalAmount)}</div>
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">جمع کل قابل پرداخت:</p>
+                <div className="text-4xl font-black text-indigo-950">{formatCurrency(items.reduce((acc, i) => acc + (i.price * i.quantity), 0))}</div>
               </div>
-              <button onClick={saveInvoice} className="w-full md:w-auto bg-green-600 text-white px-12 py-4 rounded-2xl font-black text-lg hover:bg-green-700 shadow-lg active:scale-95 transition-all">تایید و ثبت نهایی</button>
+              <button onClick={saveInvoice} className="w-full md:w-auto bg-emerald-500 text-white px-16 py-6 rounded-[2rem] font-black text-2xl shadow-2xl shadow-emerald-200 hover:bg-emerald-600 hover:-translate-y-1 transition-all active:scale-95">تایید و ثبت فاکتور ✅</button>
             </div>
           </div>
         </div>
       )}
 
       {showPrintModal && (
-        <div className="fixed inset-0 bg-gray-100 z-[200] p-4 md:p-10 overflow-auto animate-fadeIn flex flex-col items-center">
-          <div className="max-w-4xl w-full flex flex-wrap justify-center gap-4 no-print mb-8">
-            <button onClick={() => window.print()} className="bg-indigo-600 text-white px-8 py-4 rounded-2xl font-black flex items-center gap-3 shadow-xl hover:bg-indigo-700 transition active:scale-95"><span>🖨️</span> چاپ مستقیم</button>
-            <button onClick={() => handleExport('pdf')} disabled={isExporting} className="bg-red-600 text-white px-8 py-4 rounded-2xl font-black flex items-center gap-3 shadow-xl hover:bg-red-700 transition disabled:opacity-50 active:scale-95">
-              {isExporting ? '⏳ در حال تولید...' : <span>📄 خروجی PDF</span>}
-            </button>
-            <button onClick={() => handleExport('jpg')} disabled={isExporting} className="bg-green-600 text-white px-8 py-4 rounded-2xl font-black flex items-center gap-3 shadow-xl hover:bg-green-700 transition disabled:opacity-50 active:scale-95">
-              {isExporting ? '⏳...' : <span>🖼️ خروجی تصویر</span>}
-            </button>
-            <button onClick={() => setShowPrintModal(null)} className="bg-white text-gray-500 px-8 py-4 rounded-2xl font-black border-2 border-gray-200">بازگشت</button>
+        <div className="fixed inset-0 bg-slate-100/90 backdrop-blur-md z-[200] p-4 lg:p-10 overflow-auto flex flex-col items-center">
+           <div className="max-w-4xl w-full flex flex-wrap justify-center gap-4 no-print mb-10">
+            <button onClick={() => window.print()} className="flex-1 md:flex-none bg-slate-900 text-white px-10 py-4 rounded-2xl font-black flex items-center gap-2">🖨️ چاپ مستقیم</button>
+            <button onClick={exportJPG} className="flex-1 md:flex-none bg-indigo-600 text-white px-10 py-4 rounded-2xl font-black flex items-center gap-2">📸 خروجی عکس (JPG)</button>
+            <button onClick={exportPDF} className="flex-1 md:flex-none bg-red-600 text-white px-10 py-4 rounded-2xl font-black flex items-center gap-2">📄 خروجی PDF</button>
+            <button onClick={() => setShowPrintModal(null)} className="flex-1 md:flex-none bg-white text-slate-500 px-10 py-4 rounded-2xl font-black border-2 border-slate-200">بازگشت</button>
           </div>
+          
+          <div ref={invoiceRef} className="invoice-container w-full max-w-[210mm] min-h-[297mm] p-12 lg:p-20 rounded-lg bg-white shadow-2xl relative mb-20 border-t-[20px] border-slate-900">
+             <div className="flex justify-between items-start mb-20">
+                <div>
+                   <h1 className="text-6xl font-black text-slate-900 mb-2">سیرجان پوش</h1>
+                   <p className="text-slate-400 font-bold tracking-[0.3em]">SIRJAN POOSH RETAIL</p>
+                </div>
+                <div className="text-left bg-slate-50 p-8 rounded-[2rem] border-2 border-slate-100 min-w-[250px]">
+                   <h2 className="text-3xl font-black text-indigo-600 mb-4 text-center">فـاکـتـور فـروش</h2>
+                   <div className="space-y-2 text-sm font-bold">
+                      <div className="flex justify-between"><span>شماره:</span><span className="font-black text-slate-800">{toPersianNumbers(showPrintModal.id.slice(-4))}</span></div>
+                      <div className="flex justify-between"><span>تاریخ:</span><span className="font-black text-slate-800">{toPersianNumbers(showPrintModal.date)}</span></div>
+                   </div>
+                </div>
+             </div>
 
-          <div 
-            ref={invoiceRef} 
-            className="invoice-container w-full max-w-[210mm] min-h-[297mm] border-2 border-gray-200 p-10 md:p-16 rounded-[0.5rem] bg-white shadow-2xl relative mb-10 overflow-hidden"
-          >
-            {/* سربرگ فاکتور */}
-            <div className="flex justify-between items-start border-b-8 border-indigo-950 pb-8 mb-12">
-              <div className="space-y-2">
-                <h1 className="text-5xl font-black text-indigo-950">سیرجان پوش</h1>
-                <p className="text-sm font-bold text-indigo-600 tracking-widest uppercase">Sirjan Poosh Clothing Store</p>
-                <p className="text-xs text-gray-400 font-bold">بزرگترین مرکز توزیع پوشاک در منطقه</p>
-              </div>
-              <div className="text-left space-y-2">
-                 <div className="bg-indigo-950 text-white px-6 py-2 rounded-xl text-xl font-black">فـاکـتـور فـروش</div>
-                 <div className="text-sm font-bold text-gray-500 pr-2">
-                    <p>شماره: {toPersianNumbers(showPrintModal.id.slice(-5))}</p>
-                    <p>تاریخ: {toPersianNumbers(showPrintModal.date)}</p>
-                 </div>
-              </div>
-            </div>
+             <div className="mb-12 p-8 bg-slate-900 rounded-[2.5rem] text-white">
+                <p className="text-xs opacity-50 mb-2">اطلاعات خریدار:</p>
+                <p className="text-3xl font-black">{showPrintModal.customerName}</p>
+             </div>
 
-            {/* اطلاعات مشتری */}
-            <div className="bg-gray-50 p-6 rounded-3xl mb-12 flex justify-between items-center border-2 border-gray-100">
-               <p className="font-black text-xl text-indigo-950">خریدار: <span className="text-gray-700 underline underline-offset-8 decoration-indigo-200">{showPrintModal.customerName}</span></p>
-               <p className="text-xs font-black text-gray-400 italic">کلیه مبالغ به تومان می‌باشد</p>
-            </div>
+             <table className="w-full mb-12 border-collapse overflow-hidden rounded-[2rem]">
+                <thead><tr className="bg-slate-100 text-slate-500 text-sm"><th className="p-6 text-right">شرح کالا</th><th className="p-6 text-center">تعداد</th><th className="p-6 text-center">قیمت واحد (تومان)</th><th className="p-6 text-center">جمع کل</th></tr></thead>
+                <tbody className="divide-y-2 divide-slate-50">
+                   {showPrintModal.items.map((item, i) => (
+                      <tr key={i} className="font-bold text-lg"><td className="p-6">{item.name}</td><td className="p-6 text-center">{toPersianNumbers(item.quantity)}</td><td className="p-6 text-center">{toPersianNumbers(formatWithCommas(item.price))}</td><td className="p-6 text-center font-black text-indigo-600">{toPersianNumbers(formatWithCommas(item.price * item.quantity))}</td></tr>
+                   ))}
+                </tbody>
+             </table>
 
-            {/* جدول کالاها */}
-            <table className="w-full border-collapse mb-16 text-lg">
-              <thead>
-                <tr className="bg-indigo-950 text-white">
-                  <th className="p-5 border border-indigo-950 text-right w-12">#</th>
-                  <th className="p-5 border border-indigo-950 text-right">شرح کالا / خدمات</th>
-                  <th className="p-5 border border-indigo-950 text-center w-24">تعداد</th>
-                  <th className="p-5 border border-indigo-950 text-center w-48">قیمت واحد</th>
-                  <th className="p-5 border border-indigo-950 text-center w-56">جمع کل</th>
-                </tr>
-              </thead>
-              <tbody>
-                {showPrintModal.items.map((item, i) => (
-                  <tr key={i} className="font-bold border-b border-gray-100">
-                    <td className="p-5 text-center text-gray-400">{toPersianNumbers(i + 1)}</td>
-                    <td className="p-5 text-gray-800">{item.name}</td>
-                    <td className="p-5 text-center text-indigo-600 font-black">{toPersianNumbers(item.quantity)}</td>
-                    <td className="p-5 text-center text-gray-600">{toPersianNumbers(formatWithCommas(item.price))}</td>
-                    <td className="p-5 text-center font-black">{toPersianNumbers(formatWithCommas(item.price * item.quantity))}</td>
-                  </tr>
-                ))}
-              </tbody>
-              <tfoot>
-                <tr className="bg-indigo-50/50 font-black">
-                  <td colSpan={4} className="p-6 border border-indigo-950 text-left text-xl">مجموع کل مبلغ قابل پرداخت:</td>
-                  <td className="p-6 border border-indigo-950 text-center text-2xl text-indigo-950">{formatCurrency(showPrintModal.totalAmount)}</td>
-                </tr>
-              </tfoot>
-            </table>
-
-            {/* پابرگ و امضا */}
-            <div className="grid grid-cols-2 gap-20 mt-32 text-center font-black text-indigo-950">
-              <div className="space-y-16">
-                <p className="border-b-2 border-indigo-50 pb-2">مهر و امضای فروشنده</p>
-                <div className="text-[10px] text-gray-300">Sirjan Poosh Official Stamp</div>
-              </div>
-              <div className="space-y-16">
-                <p className="border-b-2 border-indigo-50 pb-2">امضای خریدار</p>
-                <div className="text-[10px] text-gray-300">Customer Confirmation Signature</div>
-              </div>
-            </div>
-
-            {/* یادداشت پابرگ */}
-            <div className="absolute bottom-16 left-16 right-16 border-t-2 border-dashed border-gray-200 pt-8 flex justify-between items-center text-[10px] font-bold text-gray-400">
-               <p>آدرس: سیرجان، بازار بزرگ، فروشگاه سیرجان پوش</p>
-               <p>تلفن تماس: ۰۹۱۲۳۴۵۶۷۸۹</p>
-               <p>طراحی شده توسط سامانه مدیریت سیرجان پوش</p>
-            </div>
+             <div className="flex justify-between items-center bg-slate-900 p-10 rounded-[3rem] text-white shadow-2xl">
+                <div>
+                   <p className="text-xs opacity-50 uppercase tracking-widest mb-1">مبلغ نهایی فاکتور:</p>
+                   <p className="text-5xl font-black text-emerald-400">{formatCurrency(showPrintModal.totalAmount)}</p>
+                </div>
+                <div className="text-left opacity-30 italic font-black text-xl">تراکنش با موفقیت ثبت شد</div>
+             </div>
+             
+             <div className="mt-20 pt-10 border-t-2 border-dashed border-slate-100 flex justify-around text-center">
+                <div><p className="font-black text-slate-300 uppercase text-[10px] mb-8">محل مهر و امضای فروشگاه</p><div className="w-40 h-40 border-4 border-slate-50 rounded-full mx-auto opacity-10"></div></div>
+                <div><p className="font-black text-slate-300 uppercase text-[10px] mb-8">امضای خریدار</p><div className="w-40 h-2 opacity-10 bg-slate-200 mt-20"></div></div>
+             </div>
           </div>
         </div>
       )}

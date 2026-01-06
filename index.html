@@ -4,57 +4,32 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>سیرجان پوش - پنل مدیریت</title>
+    <title>سیرجان پوش - پنل مدیریت هوشمند</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/Vazirmatn-font-face.css" rel="stylesheet" type="text/css" />
     <style>
         * {
             font-family: 'Vazirmatn', sans-serif !important;
+            -webkit-tap-highlight-color: transparent;
         }
         body {
             background-color: #f8fafc;
-            color: #1e293b;
+            color: #0f172a;
             margin: 0;
             padding: 0;
             overflow-x: hidden;
         }
-        input, select, textarea, button {
-            font-family: 'Vazirmatn', sans-serif !important;
-            direction: rtl;
+        .animate-fadeIn {
+            animation: fadeIn 0.4s ease-out;
         }
-        ::-webkit-scrollbar { width: 6px; }
-        ::-webkit-scrollbar-track { background: #f1f1f1; }
-        ::-webkit-scrollbar-thumb { background: #6366f1; border-radius: 10px; }
-
-        @media print {
-            .no-print { display: none !important; }
-            body { background-color: white !important; padding: 0 !important; margin: 0 !important; }
-            #root { padding: 0 !important; }
-            @page {
-                size: A4;
-                margin: 10mm;
-            }
-            .invoice-container {
-                border: 1px solid #eee !important;
-                box-shadow: none !important;
-                width: 100% !important;
-                max-width: none !important;
-                margin: 0 !important;
-                padding: 15mm !important;
-                border-radius: 0 !important;
-            }
-        }
-        
         @keyframes fadeIn {
             from { opacity: 0; transform: translateY(10px); }
             to { opacity: 1; transform: translateY(0); }
         }
-        .animate-fadeIn { animation: fadeIn 0.4s ease-out forwards; }
-
-        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
-        
-        .modal-open { overflow: hidden; }
+        @media print {
+            .no-print { display: none !important; }
+            body { background: white !important; }
+        }
     </style>
 <script type="importmap">
 {
@@ -70,7 +45,8 @@
     "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
     "react/": "https://esm.sh/react@^19.2.3/",
     "vite": "https://esm.sh/vite@^7.3.0",
-    "@vitejs/plugin-react": "https://esm.sh/@vitejs/plugin-react@^5.1.2"
+    "@vitejs/plugin-react": "https://esm.sh/@vitejs/plugin-react@^5.1.2",
+    "@neondatabase/serverless": "https://esm.sh/@neondatabase/serverless@^1.0.2"
   }
 }
 </script>

@@ -15,6 +15,7 @@ export const toEnglishDigits = (str: string | number): string => {
 };
 
 export const formatWithCommas = (val: string | number): string => {
+  if (val === undefined || val === null) return '';
   const num = String(val).replace(/[^0-9]/g, '');
   if (!num) return '';
   return num.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
@@ -43,5 +44,5 @@ export const getCurrentJalaliDate = (): string => {
 export const parseRawNumber = (str: string | number): number => {
   if (typeof str === 'number') return str;
   const engStr = toEnglishDigits(str);
-  return Number(engStr.replace(/[^0-9]/g, '')) || 0;
+  return Number(engStr.replace(/[^0-9,]/g, '').replace(/,/g, '')) || 0;
 };

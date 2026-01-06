@@ -14,7 +14,7 @@ const BackupRestore: React.FC<BackupRestoreProps> = ({ data, setData }) => {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `sirjan_poosh_backup_${new Date().toISOString().split('T')[0]}.json`;
+    a.download = `sirjan_poosh_cloud_backup_${new Date().toISOString().split('T')[0]}.json`;
     a.click();
   };
 
@@ -26,51 +26,49 @@ const BackupRestore: React.FC<BackupRestoreProps> = ({ data, setData }) => {
     reader.onload = (event) => {
       try {
         const jsonData = JSON.parse(event.target?.result as string);
-        if (confirm('آیا از بازگردانی این فایل اطمینان دارید؟ تمام اطلاعات فعلی با اطلاعات فایل جایگزین خواهد شد.')) {
+        if (confirm('آیا از بازگردانی اطمینان دارید؟ اطلاعات فعلی در دیتابیس ابری Neon با این فایل جایگزین خواهد شد.')) {
           setData(jsonData);
-          alert('اطلاعات با موفقیت بازیابی شد.');
+          alert('اطلاعات با موفقیت در دیتابیس ابری بازنویسی شد.');
         }
       } catch (err) {
-        alert('فایل نامعتبر است.');
+        alert('فایل پشتیبان نامعتبر است.');
       }
     };
     reader.readAsText(file);
   };
 
   return (
-    <div className="max-w-4xl mx-auto animate-fadeIn">
-      <div className="bg-white p-8 rounded-3xl shadow-sm border border-gray-100 text-center space-y-8">
-        <div className="text-6xl">💾</div>
+    <div className="max-w-4xl mx-auto animate-fadeIn pb-20">
+      <div className="bg-white p-12 rounded-[3rem] shadow-xl border border-slate-100 text-center space-y-10">
+        <div className="text-8xl bg-slate-50 w-32 h-32 flex items-center justify-center rounded-[2.5rem] mx-auto shadow-inner">💾</div>
         <div>
-          <h2 className="text-2xl font-bold text-gray-800 mb-2">پشتیبان‌گیری و بازیابی اطلاعات</h2>
-          <p className="text-gray-500">جهت جلوگیری از پاک شدن اطلاعات، به طور منظم از دیتابیس خود پشتیبان تهیه کنید.</p>
+          <h2 className="text-3xl font-black text-slate-800 mb-4">مرکز مدیریت داده‌ها (Neon Cloud)</h2>
+          <p className="text-slate-400 font-bold max-w-lg mx-auto leading-relaxed">تمامی اطلاعات شما هم‌اکنون در سرورهای ابری Neon ذخیره می‌شود. جهت اطمینان بیشتر، می‌توانید نسخه آفلاین تهیه کنید.</p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4">
-          <div className="p-6 border-2 border-dashed rounded-2xl border-indigo-200 hover:border-indigo-400 transition cursor-pointer" onClick={downloadBackup}>
-            <div className="text-3xl mb-4">📤</div>
-            <h3 className="font-bold text-indigo-900 mb-2">دانلود نسخه پشتیبان</h3>
-            <p className="text-xs text-gray-400">یک فایل JSON شامل تمام کالاها، فاکتورها و سوابق شرکا</p>
-          </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pt-6">
+          <button onClick={downloadBackup} className="group p-10 border-4 border-dashed rounded-[3rem] border-indigo-100 hover:border-indigo-500 hover:bg-indigo-50/30 transition-all duration-300 text-right relative overflow-hidden">
+            <div className="text-5xl mb-6 group-hover:scale-110 transition-transform">📤</div>
+            <h3 className="font-black text-2xl text-indigo-950 mb-3">تهیه نسخه پشتیبان</h3>
+            <p className="text-sm text-indigo-400 font-bold">ذخیره تمامی کالاها، فاکتورها و سوابق شرکا در یک فایل امن.</p>
+          </button>
 
-          <div className="p-6 border-2 border-dashed rounded-2xl border-orange-200 hover:border-orange-400 transition relative">
-            <div className="text-3xl mb-4">📥</div>
-            <h3 className="font-bold text-orange-900 mb-2">بازگردانی فایل پشتیبان</h3>
-            <p className="text-xs text-gray-400">انتخاب فایل از کامپیوتر جهت بارگذاری مجدد در سیستم</p>
-            <input 
-              type="file" 
-              accept=".json" 
-              className="absolute inset-0 opacity-0 cursor-pointer" 
-              onChange={handleRestore}
-            />
+          <div className="group p-10 border-4 border-dashed rounded-[3rem] border-emerald-100 hover:border-emerald-500 hover:bg-emerald-50/30 transition-all duration-300 text-right relative overflow-hidden">
+            <input type="file" accept=".json" className="absolute inset-0 opacity-0 cursor-pointer z-10" onChange={handleRestore} title="انتخاب فایل پشتیبان" />
+            <div className="text-5xl mb-6 group-hover:scale-110 transition-transform">📥</div>
+            <h3 className="font-black text-2xl text-emerald-950 mb-3">بازگردانی اطلاعات</h3>
+            <p className="text-sm text-emerald-400 font-bold">بارگذاری اطلاعات از فایل پشتیبان قبلی به دیتابیس فعلی.</p>
           </div>
         </div>
 
-        <div className="bg-yellow-50 p-4 rounded-xl border border-yellow-200 text-right">
-          <p className="text-xs text-yellow-800 leading-relaxed">
-            <strong>توجه مهم:</strong> این نرم‌افزار از دیتابیس مرورگر شما استفاده می‌کند. 
-            برای انتقال اطلاعات به سیستم دیگر یا اطمینان از حذف نشدن داده‌ها، حتما دکمه دانلود را بزنید و فایل را در جای مطمئن ذخیره کنید.
-          </p>
+        <div className="bg-slate-900 p-8 rounded-[2.5rem] text-right flex items-start gap-6 shadow-2xl">
+          <div className="text-3xl">🛡️</div>
+          <div>
+            <p className="text-sm text-white font-black mb-2">امنیت ابری فعال است</p>
+            <p className="text-xs text-slate-400 leading-relaxed font-bold">
+              اطلاعات شما به صورت رمزنگاری شده در دیتابیس SQL نگهداری می‌شود. علامت‌های سوال در متون فارسی با این تکنولوژی به طور کامل برطرف شده است.
+            </p>
+          </div>
         </div>
       </div>
     </div>
