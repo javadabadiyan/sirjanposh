@@ -22,41 +22,41 @@ const App: React.FC = () => {
   });
   const [activeTab, setActiveTab] = useState('dashboard');
 
-  useEffect(() => {
-    const loadData = async () => {
-      try {
-        setIsLoading(true);
-        const response = await fetch('/api/data', { 
-          method: 'GET',
-          cache: 'no-store' 
-        });
-        
-        const contentType = response.headers.get('content-type');
-        if (!contentType || !contentType.includes('application/json')) {
-          const text = await response.text();
-          console.error('Non-JSON response received:', text);
-          throw new Error('پاسخ سرور معتبر نیست (JSON دریافت نشد)');
-        }
-
-        const result = await response.json();
-        
-        if (!response.ok) {
-          throw new Error(result.error || `خطای سرور: ${response.status}`);
-        }
-
-        if (result && result.users) {
-          setData(result);
-          setErrorMsg(null);
-        } else {
-          throw new Error('فرمت داده‌های دریافتی نامعتبر است');
-        }
-      } catch (err: any) {
-        console.error('Fetch error:', err);
-        setErrorMsg(err.message || 'خطا در برقراری ارتباط با دیتابیس Neon');
-      } finally {
-        setIsLoading(false);
+  const loadData = async () => {
+    try {
+      setIsLoading(true);
+      setErrorMsg(null);
+      
+      const response = await fetch('/api/data', { 
+        method: 'GET',
+        headers: { 'Accept': 'application/json' }
+      });
+      
+      if (response.status === 404) {
+        throw new Error('مسیر API یافت نشد. لطفا مطمئن شوید بیلد پروژه با موفقیت تمام شده است.');
       }
-    };
+
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        throw new Error('پاسخ سرور JSON نیست. احتمالا دیتابیس متصل نیست یا خطای بیلد رخ داده است.');
+      }
+
+      const result = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(result.error || `خطای سرور: ${response.status}`);
+      }
+
+      setData(result);
+    } catch (err: any) {
+      console.error('Fetch error:', err);
+      setErrorMsg(err.message || 'خطا در دریافت اطلاعات از دیتابیس');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
     loadData();
   }, []);
 
@@ -70,7 +70,7 @@ const App: React.FC = () => {
       });
       if (!res.ok) {
         const errorText = await res.text();
-        console.error('Failed to sync with Neon:', errorText);
+        console.error('Sync failed:', errorText);
       }
     } catch (err) {
       console.error('Sync error:', err);
@@ -79,9 +79,9 @@ const App: React.FC = () => {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-slate-900 text-white font-black">
+      <div className="min-h-screen flex flex-col items-center justify-center bg-slate-950 text-white font-black">
         <div className="text-8xl animate-bounce mb-8">👕</div>
-        <div className="text-2xl tracking-tighter animate-pulse">در حال اتصال به دیتابیس Neon...</div>
+        <div className="text-2xl tracking-tighter animate-pulse">در حال فراخوانی داده‌ها از Neon...</div>
       </div>
     );
   }
@@ -90,9 +90,12 @@ const App: React.FC = () => {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-red-950 text-white p-6 text-center">
         <div className="text-6xl mb-6">⚠️</div>
-        <h2 className="text-2xl font-black mb-4">خطا در سیستم</h2>
-        <p className="bg-red-900/50 p-4 rounded-xl text-sm mb-8 max-w-md border border-red-500/30">{errorMsg}</p>
-        <button onClick={() => window.location.reload()} className="bg-white text-red-900 px-10 py-4 rounded-2xl font-black shadow-lg">تلاش مجدد</button>
+        <h2 className="text-2xl font-black mb-4">خطای سیستم</h2>
+        <p className="bg-red-900/50 p-4 rounded-2xl text-sm mb-8 max-w-md border border-red-500/30 font-bold">{errorMsg}</p>
+        <div className="flex gap-4">
+           <button onClick={loadData} className="bg-white text-red-900 px-10 py-4 rounded-2xl font-black shadow-lg">تلاش مجدد</button>
+           <button onClick={() => window.location.reload()} className="bg-red-800 text-white px-10 py-4 rounded-2xl font-black shadow-lg border border-red-400">رفرش صفحه</button>
+        </div>
       </div>
     );
   }

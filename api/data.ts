@@ -17,7 +17,6 @@ const INITIAL_DATA = {
 };
 
 export default async function handler(request: Request) {
-  // دریافت متغیرهای محیطی در محیط Edge Vercel
   const databaseUrl = 
     process.env.DATABASE_URL || 
     process.env.POSTGRES_URL || 
@@ -31,15 +30,15 @@ export default async function handler(request: Request) {
 
   if (!databaseUrl) {
     return new Response(JSON.stringify({ 
-      error: 'اتصال دیتابیس یافت نشد',
-      details: 'DATABASE_URL is missing' 
+      error: 'اتصال به دیتابیس برقرار نشد',
+      details: 'لطفا DATABASE_URL را در بخش Environment Variables ورسل اضافه کنید.' 
     }), { status: 500, headers });
   }
 
   const sql = neon(databaseUrl);
 
   try {
-    // ایجاد جدول در صورت عدم وجود (استفاده از JSONB برای پشتیبانی کامل از یونیکد فارسی)
+    // ایجاد جدول در صورت عدم وجود
     await sql`CREATE TABLE IF NOT EXISTS app_state (id INT PRIMARY KEY, content JSONB NOT NULL, updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP)`;
 
     if (request.method === 'GET') {
@@ -53,7 +52,7 @@ export default async function handler(request: Request) {
       try {
         body = await request.json();
       } catch (e) {
-        return new Response(JSON.stringify({ error: 'فرمت داده نامعتبر' }), { status: 400, headers });
+        return new Response(JSON.stringify({ error: 'داده‌های ارسالی نامعتبر است' }), { status: 400, headers });
       }
 
       await sql`
@@ -65,12 +64,12 @@ export default async function handler(request: Request) {
       return new Response(JSON.stringify({ success: true }), { status: 200, headers });
     }
 
-    return new Response(JSON.stringify({ error: 'Method not allowed' }), { status: 405, headers });
+    return new Response(JSON.stringify({ error: 'متد مجاز نیست' }), { status: 405, headers });
   } catch (error: any) {
-    console.error('Database Operation Error:', error);
+    console.error('Neon Error:', error);
     return new Response(JSON.stringify({ 
       error: 'خطای عملیاتی در دیتابیس', 
-      details: error?.message || String(error) 
+      details: error?.message || 'Unknown error' 
     }), { status: 500, headers });
   }
 }
