@@ -55,17 +55,29 @@ const App: React.FC = () => {
     try {
       const response = await fetch('/api/data', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
         body: JSON.stringify(newData)
       });
       
-      if (!response.ok) {
-        const errJson = await response.json();
-        throw new Error(errJson.error || 'خطا در ثبت اطلاعات در دیتابیس ابری');
+      const responseText = await response.text();
+      let result;
+      try {
+        result = JSON.parse(responseText);
+      } catch (e) {
+        throw new Error('پاسخ سرور معتبر نیست. احتمالاً دیتابیس متصل نیست.');
       }
+
+      if (!response.ok) {
+        throw new Error(result.error || 'خطا در ثبت اطلاعات در دیتابیس ابری');
+      }
+
+      console.log('Data saved successfully');
     } catch (err: any) {
       console.error('Save error:', err);
-      alert(`⚠️ متاسفانه ذخیره نشد: ${err.message}\nلطفاً صفحه را رفرش کنید یا اینترنت خود را چک کنید.`);
+      alert(`⚠️ متاسفانه ذخیره نشد: ${err.message}\nلطفاً از بخش تنظیمات، فایل پشتیبان تهیه کنید تا اطلاعاتتان از دست نرود.`);
     } finally {
       setIsSaving(false);
     }
@@ -85,10 +97,13 @@ const App: React.FC = () => {
       <div className="min-h-screen flex items-center justify-center bg-slate-50 p-6" dir="rtl">
         <div className="bg-white p-10 rounded-[3rem] shadow-2xl border border-red-100 max-w-lg w-full text-center">
           <div className="text-5xl mb-4">⚠️</div>
-          <h2 className="text-2xl font-black text-slate-800 mb-4">خطا در اتصال به ابر</h2>
+          <h2 className="text-2xl font-black text-slate-800 mb-4">خطا در اتصال به دیتابیس</h2>
           <p className="text-red-600 font-bold mb-6 text-sm">{errorMsg}</p>
-          <div className="bg-slate-50 p-4 rounded-2xl text-xs text-slate-500 font-bold mb-6">
-            مطمئن شوید متغیر <b>NEON_DB_URL</b> در تنظیمات Vercel با مقدار صحیح (postgres://...) وارد شده است.
+          <div className="bg-slate-50 p-4 rounded-2xl text-xs text-slate-500 font-bold mb-6 text-right leading-relaxed">
+            ۱. وارد پنل Vercel شوید.<br/>
+            ۲. به بخش <b>Settings > Environment Variables</b> بروید.<br/>
+            ۳. متغیر <b>NEON_DB_URL</b> را با لینک دیتابیس Neon مقداردهی کنید.<br/>
+            ۴. پروژه را <b>Redeploy</b> کنید.
           </div>
           <button onClick={loadData} className="w-full bg-indigo-600 text-white py-4 rounded-2xl font-black">تلاش دوباره 🔄</button>
         </div>
@@ -107,7 +122,7 @@ const App: React.FC = () => {
       {isSaving && (
         <div className="saving-loader">
           <span className="w-3 h-3 bg-indigo-500 rounded-full animate-ping"></span>
-          در حال همگام‌سازی با سرور...
+          در حال همگام‌سازی...
         </div>
       )}
 
