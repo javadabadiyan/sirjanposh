@@ -25,6 +25,11 @@ const Partners: React.FC<PartnersProps> = ({ data, setData }) => {
   const [showPaymentEditModal, setShowPaymentEditModal] = useState<PaymentHistory | null>(null);
   const [paymentEditForm, setPaymentEditForm] = useState({ amount: '', period: '', date: '' });
 
+  // وضعیت جدید برای مدیریت و ویرایش تاریخچه واریزی‌ها
+  const [manageInvestmentsPartner, setManageInvestmentsPartner] = useState<Partner | null>(null);
+  const [editingInvestmentRecord, setEditingInvestmentRecord] = useState<{partnerId: string, record: InvestmentRecord} | null>(null);
+  const [editInvForm, setEditInvForm] = useState({ amount: '', date: '' });
+
   const getPartnerTotalInvestment = (partner: Partner) => partner.investments.reduce((sum, inv) => sum + inv.amount, 0);
   const totalInvestment = data.partners.reduce((acc, p) => acc + getPartnerTotalInvestment(p), 0);
 
@@ -75,7 +80,7 @@ const Partners: React.FC<PartnersProps> = ({ data, setData }) => {
       investments: editingPartner 
         ? editingPartner.investments 
         : [{ id: Date.now().toString(), amount: parseRawNumber(partnerForm.initialAmount), date: partnerForm.initialDate }],
-      date: editingPartner ? editingPartner.date : partnerForm.initialDate
+      date: partnerForm.initialDate // اجازه تغییر تاریخ ثبت اولیه
     };
 
     const updatedPartners = editingPartner 
@@ -106,6 +111,38 @@ const Partners: React.FC<PartnersProps> = ({ data, setData }) => {
 
     setData({ ...data, partners: updatedPartners });
     setShowInvestmentModal(null);
+  };
+
+  const handleEditInvestmentRecord = (partner: Partner, record: InvestmentRecord) => {
+    setEditingInvestmentRecord({ partnerId: partner.id, record });
+    setEditInvForm({ amount: record.amount.toString(), date: record.date });
+  };
+
+  const saveEditedInvestment = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingInvestmentRecord) return;
+
+    const updatedPartners = data.partners.map(p => {
+      if (p.id === editingInvestmentRecord.partnerId) {
+        return {
+          ...p,
+          investments: p.investments.map(inv => 
+            inv.id === editingInvestmentRecord.record.id 
+              ? { ...inv, amount: parseRawNumber(editInvForm.amount), date: editInvForm.date } 
+              : inv
+          )
+        };
+      }
+      return p;
+    });
+
+    setData({ ...data, partners: updatedPartners });
+    
+    // بروزرسانی رفرنس شریک برای نمایش در مودال مدیریت
+    const updatedPartner = updatedPartners.find(p => p.id === editingInvestmentRecord.partnerId);
+    if (updatedPartner) setManageInvestmentsPartner(updatedPartner);
+    
+    setEditingInvestmentRecord(null);
   };
 
   const savePaymentEdit = (e: React.FormEvent) => {
@@ -168,7 +205,10 @@ const Partners: React.FC<PartnersProps> = ({ data, setData }) => {
                   </span>
                 </div>
                 <div className="flex flex-col md:flex-row md:justify-between text-[10px] md:text-xs font-bold text-slate-500 mb-6 bg-white/50 p-3 rounded-xl gap-2">
-                  <span>سرمایه: {formatCurrency(getPartnerTotalInvestment(p))}</span>
+                  <div className="flex items-center gap-2">
+                    <span>سرمایه: {formatCurrency(getPartnerTotalInvestment(p))}</span>
+                    <button onClick={() => setManageInvestmentsPartner(p)} className="text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-lg text-[8px] hover:bg-indigo-600 hover:text-white transition-all">ویرایش تاریخ‌ها 🗓️</button>
+                  </div>
                   <span className="md:text-left">عضویت: {toPersianNumbers(p.date)}</span>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
@@ -179,7 +219,7 @@ const Partners: React.FC<PartnersProps> = ({ data, setData }) => {
                   <button 
                     onClick={(e) => { e.preventDefault(); setEditingPartner(p); setPartnerForm({name: p.name, initialAmount: '', initialDate: p.date}); setShowPartnerModal(true); }} 
                     className="bg-blue-50 text-blue-600 py-3 rounded-xl font-black text-[10px] shadow-sm hover:bg-blue-600 hover:text-white transition-all min-h-[44px]"
-                  >ویرایش</button>
+                  >ویرایش مشخصات</button>
                   <button 
                     onClick={(e) => { e.preventDefault(); if(confirm('با حذف شریک تمامی سوابق واریزی و سهم وی حذف می‌شود. مطمئن هستید؟')) setData({...data, partners: data.partners.filter(i=>i.id!==p.id)}) }} 
                     className="bg-red-50 text-red-500 py-3 rounded-xl font-black text-[10px] hover:bg-red-600 hover:text-white transition-all min-h-[44px]"
@@ -260,42 +300,91 @@ const Partners: React.FC<PartnersProps> = ({ data, setData }) => {
         </div>
       </div>
 
-      {/* مدال‌های تمام صفحه در موبایل */}
-      {/* (Partner, Investment, Payment Edit Modals follow the same pattern: bg-slate-900/90, w-full h-full on mobile) */}
-      {(showPartnerModal || showInvestmentModal || showPaymentEditModal) && (
-        <div className="fixed inset-0 z-[1000] flex items-center justify-center p-0 md:p-4 bg-slate-900/95 backdrop-blur-md overflow-y-auto">
+      {/* مدال‌های مدیریت و ویرایش */}
+      {(showPartnerModal || showInvestmentModal || showPaymentEditModal || manageInvestmentsPartner || editingInvestmentRecord) && (
+        <div className="fixed inset-0 z-[1000] flex items-center justify-center p-0 md:p-4 bg-slate-900/95 backdrop-blur-md overflow-y-auto safe-padding">
           {/* Modal Container */}
           <div className="bg-white w-full h-full md:h-auto md:max-h-[90vh] md:max-w-lg md:rounded-[3rem] shadow-2xl overflow-hidden flex flex-col">
+            
             {/* Modal Header */}
-            <div className={`p-6 md:p-8 text-white flex justify-between items-center shrink-0 ${showInvestmentModal ? 'bg-emerald-600' : showPaymentEditModal ? 'bg-blue-600' : 'bg-indigo-600'}`}>
+            <div className={`p-6 md:p-8 text-white flex justify-between items-center shrink-0 ${
+              showInvestmentModal ? 'bg-emerald-600' : 
+              showPaymentEditModal ? 'bg-blue-600' : 
+              manageInvestmentsPartner ? 'bg-indigo-900' : 
+              editingInvestmentRecord ? 'bg-orange-600' : 'bg-indigo-600'
+            }`}>
               <h3 className="text-xl md:text-2xl font-black truncate">
                 {showPartnerModal ? (editingPartner ? 'ویرایش شریک' : 'شریک جدید') : 
-                 showInvestmentModal ? 'افزایش سرمایه' : 'ویرایش تسویه'}
+                 showInvestmentModal ? 'افزایش سرمایه' : 
+                 showPaymentEditModal ? 'ویرایش تسویه' : 
+                 manageInvestmentsPartner ? `تاریخچه سرمایه: ${manageInvestmentsPartner.name}` :
+                 editingInvestmentRecord ? 'ویرایش رکورد واریز' : ''}
               </h3>
-              <button onClick={() => { setShowPartnerModal(false); setShowInvestmentModal(null); setShowPaymentEditModal(null); setEditingPartner(null); }} className="w-10 h-10 flex items-center justify-center bg-white/10 rounded-xl text-3xl">&times;</button>
+              <button onClick={() => { 
+                setShowPartnerModal(false); 
+                setShowInvestmentModal(null); 
+                setShowPaymentEditModal(null); 
+                setManageInvestmentsPartner(null);
+                setEditingInvestmentRecord(null);
+                setEditingPartner(null); 
+              }} className="w-10 h-10 flex items-center justify-center bg-white/10 rounded-xl text-3xl">&times;</button>
             </div>
             
             {/* Modal Body */}
             <div className="p-6 md:p-8 flex-1 overflow-y-auto bg-slate-50/30">
+              
               {showPartnerModal && (
                 <form onSubmit={savePartner} className="space-y-6">
                   <div className="space-y-1.5"><label className="text-[10px] font-black text-slate-500 uppercase mr-2">نام کامل شریک</label><input required className="w-full p-4.5 bg-white border-2 border-slate-100 rounded-2xl outline-none focus:border-indigo-500 font-bold" value={partnerForm.name} onChange={e=>setPartnerForm({...partnerForm, name: e.target.value})} /></div>
-                  {!editingPartner && (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {!editingPartner && (
                       <div className="space-y-1.5"><label className="text-[10px] font-black text-slate-500 uppercase mr-2">سرمایه اولیه</label><input required className="w-full p-4.5 bg-white border-2 border-slate-100 rounded-2xl outline-none focus:border-indigo-500 font-black text-center" value={toPersianNumbers(formatWithCommas(partnerForm.initialAmount))} onChange={e=>handleNumericChange(setPartnerForm, 'initialAmount', e.target.value)} /></div>
-                      <div className="space-y-1.5"><label className="text-[10px] font-black text-slate-500 uppercase mr-2">تاریخ ثبت</label><input required className="w-full p-4.5 bg-white border-2 border-slate-100 rounded-2xl outline-none focus:border-indigo-500 font-black text-center" value={partnerForm.initialDate} onChange={e=>setPartnerForm({...partnerForm, initialDate: e.target.value})} /></div>
-                    </div>
-                  )}
+                    )}
+                    <div className="space-y-1.5"><label className="text-[10px] font-black text-slate-500 uppercase mr-2">تاریخ {editingPartner ? 'عضویت' : 'ثبت'}</label><input required className="w-full p-4.5 bg-white border-2 border-slate-100 rounded-2xl outline-none focus:border-indigo-500 font-black text-center" value={partnerForm.initialDate} onChange={e=>setPartnerForm({...partnerForm, initialDate: e.target.value})} /></div>
+                  </div>
                   <button type="submit" className="w-full bg-indigo-600 text-white py-5 rounded-2xl font-black text-lg md:text-xl shadow-xl min-h-[60px] active:scale-95 transition-all mt-4">{editingPartner ? 'ثبت تغییرات' : 'ایجاد حساب شریک'}</button>
                 </form>
               )}
+
               {showInvestmentModal && (
                 <form onSubmit={saveInvestment} className="space-y-6">
                   <div className="space-y-1.5"><label className="text-[10px] font-black text-slate-500 uppercase mr-2">مبلغ واریزی (تومان)</label><input required className="w-full p-5 bg-white border-2 border-slate-100 rounded-2xl outline-none focus:border-emerald-500 font-black text-center text-2xl text-emerald-600" value={toPersianNumbers(formatWithCommas(invForm.amount))} onChange={e=>handleNumericChange(setInvForm, 'amount', e.target.value)} /></div>
-                  <div className="space-y-1.5"><label className="text-[10px] font-black text-slate-500 uppercase mr-2">تاریخ واریز</label><input required className="w-full p-4.5 bg-white border-2 border-slate-100 rounded-2xl outline-none focus:border-emerald-500 font-black text-center" value={invForm.date} onChange={e=>setInvForm({...invForm, date: e.target.value})} /></div>
+                  <div className="space-y-1.5"><label className="text-[10px] font-black text-slate-500 uppercase mr-2">تاریخ واریز سرمایه جدید</label><input required className="w-full p-4.5 bg-white border-2 border-slate-100 rounded-2xl outline-none focus:border-emerald-500 font-black text-center" value={invForm.date} onChange={e=>setInvForm({...invForm, date: e.target.value})} /></div>
                   <button type="submit" className="w-full bg-emerald-600 text-white py-5 rounded-2xl font-black text-lg md:text-xl shadow-xl min-h-[60px] active:scale-95 transition-all mt-4">تایید واریز وجه ✅</button>
                 </form>
               )}
+
+              {manageInvestmentsPartner && !editingInvestmentRecord && (
+                <div className="space-y-4">
+                  <p className="text-[10px] font-black text-slate-400 mb-4 text-center">لیست تمامی واریزی‌های سرمایه</p>
+                  <div className="space-y-2">
+                    {manageInvestmentsPartner.investments.map((inv, idx) => (
+                      <div key={inv.id} className="flex justify-between items-center p-4 bg-white border border-slate-100 rounded-2xl shadow-sm">
+                        <div className="overflow-hidden">
+                          <p className="font-black text-sm text-slate-800">{formatCurrency(inv.amount)}</p>
+                          <p className="text-[10px] font-bold text-slate-400">تاریخ: {toPersianNumbers(inv.date)}</p>
+                        </div>
+                        <button 
+                          onClick={() => handleEditInvestmentRecord(manageInvestmentsPartner, inv)}
+                          className="bg-indigo-50 text-indigo-600 px-4 py-2 rounded-xl text-[10px] font-black hover:bg-indigo-600 hover:text-white transition-all"
+                        >ویرایش تاریخ و مبلغ 📝</button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {editingInvestmentRecord && (
+                <form onSubmit={saveEditedInvestment} className="space-y-6">
+                  <div className="space-y-1.5"><label className="text-[10px] font-black text-slate-500 uppercase mr-2">مبلغ واریزی</label><input required className="w-full p-4.5 bg-white border-2 border-slate-100 rounded-2xl outline-none focus:border-orange-500 font-black text-center" value={toPersianNumbers(formatWithCommas(editInvForm.amount))} onChange={e=>handleNumericChange(setEditInvForm, 'amount', e.target.value)} /></div>
+                  <div className="space-y-1.5"><label className="text-[10px] font-black text-slate-500 uppercase mr-2">تغییر تاریخ این واریزی</label><input required className="w-full p-4.5 bg-white border-2 border-slate-100 rounded-2xl outline-none focus:border-orange-500 font-black text-center" value={editInvForm.date} onChange={e=>setEditInvForm({...editInvForm, date: e.target.value})} /></div>
+                  <div className="flex gap-2">
+                    <button type="submit" className="flex-2 bg-orange-600 text-white py-4 rounded-2xl font-black shadow-lg">ذخیره تغییرات 💾</button>
+                    <button type="button" onClick={() => setEditingInvestmentRecord(null)} className="flex-1 bg-slate-100 text-slate-500 rounded-2xl font-bold">بازگشت</button>
+                  </div>
+                </form>
+              )}
+
               {showPaymentEditModal && (
                 <form onSubmit={savePaymentEdit} className="space-y-6">
                   <div className="space-y-1.5"><label className="text-[10px] font-black text-slate-500 uppercase mr-2">مبلغ واریز شده (تومان)</label><input required className="w-full p-5 bg-white border-2 border-slate-100 rounded-2xl outline-none focus:border-blue-500 font-black text-center text-2xl text-blue-600" value={toPersianNumbers(formatWithCommas(paymentEditForm.amount))} onChange={e=>handleNumericChange(setPaymentEditForm, 'amount', e.target.value)} /></div>
