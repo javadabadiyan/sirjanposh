@@ -1,10 +1,11 @@
 
 import React, { useState, useRef } from 'react';
 import { AppData, Invoice, InvoiceItem, Product, User } from '../types';
-import { formatCurrency, toPersianNumbers, getCurrentJalaliDate, formatWithCommas, toEnglishDigits } from '../utils/formatters';
+import { formatCurrency, toPersianNumbers, getCurrentJalaliDate, formatWithCommas, toEnglishDigits, parseRawNumber } from '../utils/formatters';
 import DatePicker from './DatePicker';
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
+import * as XLSX from 'xlsx';
 
 interface InvoicesProps {
   data: AppData;
@@ -25,6 +26,7 @@ const Invoices: React.FC<InvoicesProps> = ({ data, setData, currentUser }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [showPrintModal, setShowPrintModal] = useState<Invoice | null>(null);
   const [isExporting, setIsExporting] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
   
   const invoiceRef = useRef<HTMLDivElement>(null);
 
@@ -111,6 +113,117 @@ const Invoices: React.FC<InvoicesProps> = ({ data, setData, currentUser }) => {
     setData({ ...data, invoices: data.invoices.filter(i => i.id !== invId), products: updatedProducts });
   };
 
+  const downloadTemplate = () => {
+    const templateData = [
+      {
+        'نام مشتری': 'علی محمدی',
+        'شماره تماس': '09123456789',
+        'آدرس': 'سیرجان، خیابان امام',
+        'کد کالا': '1001',
+        'تعداد': '1',
+        'قیمت واحد (اختیاری)': '',
+        'تاریخ فاکتور': getCurrentJalaliDate()
+      }
+    ];
+    const ws = XLSX.utils.json_to_sheet(templateData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Invoices_Template");
+    XLSX.writeFile(wb, "SirjanPoosh_Invoice_Import_Template.xlsx");
+  };
+
+  const handleExcelImport = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsImporting(true);
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      try {
+        const bstr = evt.target?.result;
+        const wb = XLSX.read(bstr, { type: 'binary' });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        const rawData: any[] = XLSX.utils.sheet_to_json(ws);
+
+        if (rawData.length === 0) throw new Error('فایل خالی است.');
+
+        // Grouping rows by customer+date+phone to create single invoices
+        const invoiceGroups: Record<string, any[]> = {};
+        rawData.forEach(row => {
+          const key = `${row['نام مشتری']}_${row['تاریخ فاکتور']}_${row['شماره تماس']}`;
+          if (!invoiceGroups[key]) invoiceGroups[key] = [];
+          invoiceGroups[key].push(row);
+        });
+
+        const newInvoices: Invoice[] = [];
+        let updatedProducts = [...data.products];
+        let errors: string[] = [];
+
+        Object.values(invoiceGroups).forEach((group, idx) => {
+          const first = group[0];
+          const invoiceItems: InvoiceItem[] = [];
+          
+          group.forEach(row => {
+            const productCode = toEnglishDigits(row['کد کالا']).trim();
+            const product = updatedProducts.find(p => toEnglishDigits(p.code).trim() === productCode);
+            
+            if (product) {
+              const qty = parseRawNumber(row['تعداد']);
+              const price = parseRawNumber(row['قیمت واحد (اختیاری)'] || product.sellPrice);
+              
+              if (product.quantity >= qty) {
+                invoiceItems.push({
+                  productId: product.id,
+                  name: product.name,
+                  quantity: qty,
+                  price: price
+                });
+                // Deduct from temp product list
+                const pIdx = updatedProducts.findIndex(p => p.id === product.id);
+                updatedProducts[pIdx] = { ...updatedProducts[pIdx], quantity: updatedProducts[pIdx].quantity - qty };
+              } else {
+                errors.push(`کالای ${product.name} (کد ${productCode}) موجودی کافی ندارد.`);
+              }
+            } else {
+              errors.push(`کد کالای ${productCode} در سیستم یافت نشد.`);
+            }
+          });
+
+          if (invoiceItems.length > 0) {
+            newInvoices.push({
+              id: (Date.now() + idx).toString(),
+              customerName: String(first['نام مشتری']),
+              customerAddress: String(first['آدرس'] || ''),
+              customerPhone: toPersianNumbers(first['شماره تماس'] || ''),
+              items: invoiceItems,
+              totalAmount: invoiceItems.reduce((acc, i) => acc + (i.price * i.quantity), 0),
+              date: toPersianNumbers(first['تاریخ فاکتور'] || getCurrentJalaliDate()),
+              registeredBy: currentUser.username
+            });
+          }
+        });
+
+        if (errors.length > 0) {
+          alert("برخی موارد وارد نشدند:\n" + errors.join("\n"));
+        }
+
+        if (newInvoices.length > 0) {
+          setData({
+            ...data,
+            invoices: [...data.invoices, ...newInvoices],
+            products: updatedProducts
+          });
+          alert(`✅ تعداد ${toPersianNumbers(newInvoices.length)} فاکتور با موفقیت وارد شد.`);
+        }
+      } catch (err: any) {
+        alert('❌ خطا در خواندن اکسل فاکتورها: ' + err.message);
+      } finally {
+        setIsImporting(false);
+        e.target.value = '';
+      }
+    };
+    reader.readAsBinaryString(file);
+  };
+
   const captureInvoice = async () => {
     if (!invoiceRef.current) return null;
     return await html2canvas(invoiceRef.current, {
@@ -163,12 +276,25 @@ const Invoices: React.FC<InvoicesProps> = ({ data, setData, currentUser }) => {
 
   return (
     <div className="space-y-6 animate-slide-up pb-20">
-      <div className="flex flex-col md:flex-row justify-between items-center gap-4 bg-white p-5 md:p-6 rounded-[2.2rem] md:rounded-[2.5rem] shadow-sm border border-slate-100">
-        <div className="relative w-full md:w-96">
-          <input placeholder="🔍 جستجوی مشتری..." className="w-full pr-12 py-4.5 bg-slate-50 border-none rounded-2xl font-bold outline-none" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+      <div className="flex flex-col xl:flex-row justify-between items-center gap-4 bg-white p-5 md:p-6 rounded-[2.2rem] md:rounded-[2.5rem] shadow-sm border border-slate-100">
+        <div className="relative w-full md:flex-1">
+          <input placeholder="🔍 جستجوی مشتری یا شماره تماس..." className="w-full pr-12 py-4.5 bg-slate-50 border-none rounded-2xl font-bold outline-none" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
           <span className="absolute right-4 top-1/2 -translate-y-1/2 opacity-30">🔍</span>
         </div>
-        <button onClick={() => { setEditingInvoice(null); setCustomerName(''); setCustomerAddress(''); setCustomerPhone(''); setInvoiceDate(getCurrentJalaliDate()); setItems([]); setShowModal(true); }} className="w-full md:w-auto bg-indigo-600 text-white px-10 py-5 rounded-[1.5rem] font-black shadow-xl hover:bg-indigo-700 text-lg min-h-[60px]">+ صدور فاکتور</button>
+        <div className="flex flex-wrap gap-2 w-full md:w-auto">
+          <button onClick={() => { setEditingInvoice(null); setCustomerName(''); setCustomerAddress(''); setCustomerPhone(''); setInvoiceDate(getCurrentJalaliDate()); setItems([]); setShowModal(true); }} className="flex-1 md:flex-none bg-indigo-600 text-white px-8 py-4.5 rounded-[1.5rem] font-black shadow-xl hover:bg-indigo-700 text-sm min-h-[56px]">+ صدور فاکتور</button>
+          
+          <div className="relative overflow-hidden bg-emerald-600 text-white px-5 py-4.5 rounded-[1.5rem] font-black hover:bg-emerald-700 shadow-xl transition-all active:scale-95 flex items-center justify-center gap-2 cursor-pointer min-h-[56px]">
+            <input type="file" accept=".xlsx, .xls" className="absolute inset-0 opacity-0 cursor-pointer" onChange={handleExcelImport} disabled={isImporting} />
+            <span className="text-xl">📥</span>
+            <span className="text-xs">{isImporting ? 'درحال ورود...' : 'ورود از اکسل'}</span>
+          </div>
+          
+          <button onClick={downloadTemplate} className="bg-slate-100 text-slate-600 px-4 py-4.5 rounded-[1.5rem] font-black hover:bg-slate-200 transition-all flex items-center justify-center gap-2 min-h-[56px]" title="دانلود نمونه اکسل فاکتور">
+            <span className="text-xl">📄</span>
+            <span className="text-[10px] hidden sm:inline">نمونه اکسل</span>
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
