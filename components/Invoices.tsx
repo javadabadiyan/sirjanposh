@@ -116,13 +116,12 @@ const Invoices: React.FC<InvoicesProps> = ({ data, setData, currentUser }) => {
     if (!invoiceRef.current) return null;
     await document.fonts.ready;
 
-    // Temporarily fix visual scale for capture
     const originalTransform = invoiceRef.current.style.transform;
     invoiceRef.current.style.transform = 'none';
 
     try {
       const canvas = await html2canvas(invoiceRef.current, {
-        scale: 4, // 4x quality
+        scale: 4, 
         useCORS: true,
         allowTaint: true,
         backgroundColor: "#ffffff",
@@ -281,7 +280,11 @@ const Invoices: React.FC<InvoicesProps> = ({ data, setData, currentUser }) => {
       )}
 
       {showPrintModal && (
-        <div className="fixed inset-0 bg-slate-900/95 backdrop-blur-xl z-[3000] p-4 md:p-8 overflow-y-auto flex flex-col items-center safe-padding no-print">
+        /* 
+           Crucial Fix: Removed "no-print" from this main container 
+           to allow browser print engine to see the content.
+        */
+        <div className="fixed inset-0 bg-slate-900/95 backdrop-blur-xl z-[3000] p-4 md:p-8 overflow-y-auto flex flex-col items-center safe-padding">
           <div className="max-w-[148mm] w-full flex flex-wrap justify-between items-center gap-4 mb-8 bg-white/10 p-4 rounded-3xl border border-white/10 no-print">
             <div className="flex items-center gap-3">
               <button onClick={() => window.print()} className="bg-indigo-600 text-white px-5 py-3 rounded-2xl font-black text-xs hover:bg-indigo-700 transition-all flex items-center gap-2">
@@ -297,9 +300,9 @@ const Invoices: React.FC<InvoicesProps> = ({ data, setData, currentUser }) => {
             <button onClick={() => setShowPrintModal(null)} className="w-10 h-10 flex items-center justify-center bg-white/20 text-white rounded-xl hover:bg-red-500 transition-all text-xl font-light">&times;</button>
           </div>
 
-          <div className="invoice-preview-wrapper w-full flex justify-center pb-20">
+          <div className="invoice-preview-wrapper w-full flex justify-center pb-20 print-container-parent">
             <div ref={invoiceRef} id="printable-invoice" className="invoice-preview-container bg-white flex flex-col rtl-fix">
-              <div className="absolute top-0 right-0 left-0 h-3 bg-slate-900"></div>
+              <div className="absolute top-0 right-0 left-0 h-3 bg-slate-900 no-print"></div>
               
               <div className="flex justify-between items-start mb-10 pt-4">
                 <div className="rtl-fix">
@@ -335,7 +338,7 @@ const Invoices: React.FC<InvoicesProps> = ({ data, setData, currentUser }) => {
                         </div>
                       )}
                    </div>
-                   <div className="absolute top-0 left-0 p-4 opacity-5 text-6xl rotate-12">👤</div>
+                   <div className="absolute top-0 left-0 p-4 opacity-5 text-6xl rotate-12 no-print">👤</div>
                 </div>
              </div>
 
@@ -381,13 +384,13 @@ const Invoices: React.FC<InvoicesProps> = ({ data, setData, currentUser }) => {
                    <div className="text-center relative">
                       <p className="text-[10px] font-black text-slate-400 mb-12 uppercase tracking-widest">مهر و امضای فروشگاه</p>
                       <div className="w-20 h-20 border-2 border-slate-50 rounded-full mx-auto flex items-center justify-center opacity-5">
-                        <span className="text-[10px] font-black rotate-45 tracking-[0.2em]">SEAL</span>
+                        <span className="text-[10px] font-black rotate-45 tracking-[0.2em] no-print">SEAL</span>
                       </div>
                    </div>
                    <div className="text-center">
                       <p className="text-[10px] font-black text-slate-400 mb-12 uppercase tracking-widest">امضای خریدار</p>
                       <div className="h-20 border-b-2 border-slate-50 flex items-end justify-center pb-2">
-                         <span className="text-[9px] font-bold text-slate-100 uppercase tracking-tighter italic opacity-20">Customer Signature</span>
+                         <span className="text-[9px] font-bold text-slate-100 uppercase tracking-tighter italic opacity-20 no-print">Customer Signature</span>
                       </div>
                    </div>
                 </div>
