@@ -116,27 +116,27 @@ const Invoices: React.FC<InvoicesProps> = ({ data, setData, currentUser }) => {
   const captureInvoice = async () => {
     if (!invoiceRef.current) return null;
     
-    // Ensure fonts are ready for high-quality capture
+    // Ensure fonts are ready
     await document.fonts.ready;
 
-    // Temporarily reset styles for capture
+    // Temporarily fix the element size for consistent capture
     const originalTransform = invoiceRef.current.style.transform;
     invoiceRef.current.style.transform = 'none';
 
     try {
       const canvas = await html2canvas(invoiceRef.current, {
-        scale: 4, // Ultra-high resolution
+        scale: 3, // High DPI capture
         useCORS: true,
         allowTaint: true,
         backgroundColor: "#ffffff",
         logging: false,
         onclone: (clonedDoc) => {
-          const clonedContainer = clonedDoc.getElementById('printable-invoice');
-          if (clonedContainer) {
-            clonedContainer.style.transform = 'none';
-            clonedContainer.style.margin = '0';
-            clonedContainer.style.position = 'relative';
-            clonedContainer.style.display = 'flex';
+          const el = clonedDoc.getElementById('printable-invoice');
+          if (el) {
+            el.style.transform = 'none';
+            el.style.margin = '0';
+            el.style.position = 'relative';
+            el.style.display = 'flex';
           }
         }
       });
@@ -153,8 +153,8 @@ const Invoices: React.FC<InvoicesProps> = ({ data, setData, currentUser }) => {
       if (!canvas) return;
       const link = document.createElement('a');
       const safeName = toEnglishDigits(showPrintModal?.customerName || 'Customer').replace(/\s+/g, '_');
-      link.download = `Invoice_${safeName}_${toEnglishDigits(getCurrentJalaliDate()).replace(/\//g, '-')}.jpg`;
-      link.href = canvas.toDataURL('image/jpeg', 0.98);
+      link.download = `Invoice_${safeName}.jpg`;
+      link.href = canvas.toDataURL('image/jpeg', 0.95);
       link.click();
     } finally {
       setIsExporting(false);
@@ -167,7 +167,7 @@ const Invoices: React.FC<InvoicesProps> = ({ data, setData, currentUser }) => {
       const canvas = await captureInvoice();
       if (!canvas) return;
       
-      const imgData = canvas.toDataURL('image/jpeg', 0.95);
+      const imgData = canvas.toDataURL('image/jpeg', 0.9);
       const pdf = new jsPDF({
         orientation: 'p',
         unit: 'mm',
@@ -178,10 +178,11 @@ const Invoices: React.FC<InvoicesProps> = ({ data, setData, currentUser }) => {
       const pdfWidth = pdf.internal.pageSize.getWidth();
       const pdfHeight = pdf.internal.pageSize.getHeight();
       
-      pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight, undefined, 'FAST');
+      // Since it's an image, RTL reversal is impossible (it's a pixel-perfect snapshot)
+      pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight);
       
       const safeName = toEnglishDigits(showPrintModal?.customerName || 'Customer').replace(/\s+/g, '_');
-      pdf.save(`Invoice_${safeName}_${toEnglishDigits(getCurrentJalaliDate()).replace(/\//g, '-')}.pdf`);
+      pdf.save(`Invoice_${safeName}.pdf`);
     } finally {
       setIsExporting(false);
     }
@@ -291,6 +292,7 @@ const Invoices: React.FC<InvoicesProps> = ({ data, setData, currentUser }) => {
 
   return (
     <div className="space-y-6 animate-slide-up pb-20">
+      {/* Search and Action Bar */}
       <div className="flex flex-col xl:flex-row justify-between items-center gap-4 bg-white p-5 md:p-6 rounded-[2.2rem] md:rounded-[2.5rem] shadow-sm border border-slate-100">
         <div className="relative w-full md:flex-1">
           <input placeholder="🔍 جستجوی مشتری یا شماره تماس..." className="w-full pr-12 py-4.5 bg-slate-50 border-none rounded-2xl font-bold outline-none" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
@@ -312,6 +314,7 @@ const Invoices: React.FC<InvoicesProps> = ({ data, setData, currentUser }) => {
         </div>
       </div>
 
+      {/* Invoice List */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {filtered.map(inv => (
           <div key={inv.id} className="bg-white p-7 md:p-8 rounded-[2.5rem] shadow-sm border border-slate-100 hover:shadow-xl transition-all relative">
@@ -336,6 +339,7 @@ const Invoices: React.FC<InvoicesProps> = ({ data, setData, currentUser }) => {
         ))}
       </div>
 
+      {/* Invoice Creation Modal */}
       {showModal && (
         <div className="fixed inset-0 bg-slate-900/90 backdrop-blur-md flex items-center justify-center p-0 md:p-4 z-[2000] overflow-y-auto">
           <div className="bg-white w-full h-full md:h-auto md:max-h-[95vh] md:max-w-4xl md:rounded-[3.5rem] flex flex-col overflow-hidden shadow-2xl relative">
@@ -392,107 +396,126 @@ const Invoices: React.FC<InvoicesProps> = ({ data, setData, currentUser }) => {
         </div>
       )}
 
+      {/* A5 Print Modal with Improved PDF and Image logic */}
       {showPrintModal && (
         <div className="fixed inset-0 bg-slate-900/95 backdrop-blur-xl z-[3000] p-4 md:p-8 overflow-y-auto flex flex-col items-center safe-padding no-print">
-          <div className="max-w-[148mm] w-full flex flex-wrap justify-between items-center gap-4 mb-8 bg-white/10 p-4 rounded-3xl border border-white/10">
+          {/* Top Actions Panel */}
+          <div className="max-w-[148mm] w-full flex flex-wrap justify-between items-center gap-4 mb-8 bg-white/10 p-4 rounded-3xl border border-white/10 no-print">
             <div className="flex items-center gap-3">
               <button onClick={() => window.print()} className="bg-indigo-600 text-white px-5 py-3 rounded-2xl font-black text-xs hover:bg-indigo-700 transition-all flex items-center gap-2">
-                <span>🖨️ چاپ A5</span>
+                <span>🖨️ چاپ فاکتور (A5)</span>
               </button>
               <button onClick={downloadPDF} disabled={isExporting} className="bg-red-500 text-white px-5 py-3 rounded-2xl font-black text-xs hover:bg-red-600 transition-all flex items-center gap-2 disabled:opacity-50">
-                <span>📄 PDF</span>
+                <span>📄 دانلود PDF</span>
               </button>
               <button onClick={downloadJPG} disabled={isExporting} className="bg-emerald-500 text-white px-5 py-3 rounded-2xl font-black text-xs hover:bg-emerald-600 transition-all flex items-center gap-2 disabled:opacity-50">
-                <span>🖼️ تصویر</span>
+                <span>🖼️ دانلود عکس</span>
               </button>
             </div>
             <button onClick={() => setShowPrintModal(null)} className="w-10 h-10 flex items-center justify-center bg-white/20 text-white rounded-xl hover:bg-red-500 transition-all text-xl font-light">&times;</button>
           </div>
 
-          <div className="invoice-preview-wrapper no-scrollbar overflow-x-hidden w-full flex justify-center pb-12">
-            <div ref={invoiceRef} id="printable-invoice" className="invoice-preview-container invoice-print-only bg-white p-8 md:p-10 relative overflow-hidden flex flex-col">
+          {/* Actual Invoice Body for Print/Preview */}
+          <div className="invoice-preview-wrapper w-full flex justify-center pb-20">
+            <div ref={invoiceRef} id="printable-invoice" className="invoice-preview-container bg-white flex flex-col">
+              {/* Header Design */}
               <div className="absolute top-0 right-0 left-0 h-3 bg-slate-900"></div>
               
-              <div className="flex justify-between items-start mb-8 pt-2">
+              <div className="flex justify-between items-start mb-8 pt-4">
                 <div>
-                   <h1 className="text-3xl font-black text-slate-900 mb-1 leading-none">سیرجان پوش</h1>
-                   <p className="text-slate-400 font-black tracking-[0.1em] text-[7px] mr-1 uppercase">SIRJAN POOSH MANAGEMENT</p>
+                   <h1 className="text-4xl font-black text-slate-900 mb-1 leading-none">سیرجان پوش</h1>
+                   <p className="text-slate-400 font-black tracking-[0.1em] text-[7px] mr-1 uppercase">SIRJAN POOSH MANAGEMENT SYSTEM</p>
                 </div>
-                <div className="bg-slate-50 p-4 rounded-[1.5rem] border-2 border-slate-100 min-w-[130px] text-center">
-                   <h2 className="text-sm font-black text-indigo-600 mb-2 border-b border-indigo-100 pb-1">فـاکـتـور فروش</h2>
-                   <div className="space-y-1.5 text-[9px] font-black">
-                      <div className="flex justify-between gap-2 text-slate-400"><span>شماره:</span><span className="text-slate-900">{toPersianNumbers(showPrintModal.id.slice(-4))}</span></div>
-                      <div className="flex justify-between gap-2 text-slate-400"><span>تاریخ:</span><span className="text-slate-900">{toPersianNumbers(showPrintModal.date)}</span></div>
+                <div className="bg-slate-50 p-4 rounded-[1.5rem] border-2 border-slate-100 min-w-[140px] text-center">
+                   <h2 className="text-base font-black text-indigo-600 mb-2 border-b border-indigo-100 pb-1">فاکتور فروش</h2>
+                   <div className="space-y-1.5 text-[10px] font-black">
+                      <div className="flex justify-between gap-4 text-slate-400"><span>شماره:</span><span className="text-slate-900">{toPersianNumbers(showPrintModal.id.slice(-4))}</span></div>
+                      <div className="flex justify-between gap-4 text-slate-400"><span>تاریخ:</span><span className="text-slate-900">{toPersianNumbers(showPrintModal.date)}</span></div>
                    </div>
                 </div>
              </div>
 
-             <div className="grid grid-cols-1 gap-4 mb-6">
-                <div className="bg-slate-900 p-5 rounded-[1.5rem] text-white shadow-lg">
-                   <p className="text-[7px] font-black opacity-50 mb-1.5 tracking-widest uppercase">مشتری (Buyer)</p>
-                   <p className="text-base font-black mb-1 leading-tight">{showPrintModal.customerName}</p>
-                   <div className="flex flex-col gap-1 mt-2">
-                      {showPrintModal.customerPhone && <div className="flex items-center gap-1.5 text-emerald-400 font-black text-xs"><span>📞</span> {toPersianNumbers(showPrintModal.customerPhone)}</div>}
-                      {showPrintModal.customerAddress && <div className="text-slate-400 text-[8px] font-bold leading-relaxed line-clamp-2">{showPrintModal.customerAddress}</div>}
+             {/* Customer Details Box - Better Spacing to avoid overlaps */}
+             <div className="mb-6">
+                <div className="bg-slate-900 p-6 rounded-[1.5rem] text-white shadow-xl">
+                   <div className="flex justify-between items-start mb-4">
+                      <div className="space-y-1 flex-1">
+                        <p className="text-[8px] font-black opacity-40 uppercase tracking-widest">مشتری گرامی (Buyer)</p>
+                        <p className="text-xl font-black leading-tight text-white">{showPrintModal.customerName}</p>
+                      </div>
+                      {showPrintModal.customerPhone && (
+                        <div className="bg-emerald-500/10 text-emerald-400 px-3 py-1.5 rounded-xl font-black text-xs border border-emerald-500/20">
+                           {toPersianNumbers(showPrintModal.customerPhone)} 📞
+                        </div>
+                      )}
                    </div>
+                   {showPrintModal.customerAddress && (
+                     <div className="mt-2 pt-2 border-t border-white/5">
+                        <p className="text-[8px] font-black opacity-40 uppercase tracking-widest mb-1">نشانی (Address)</p>
+                        <p className="text-[10px] font-bold text-slate-300 leading-relaxed">{showPrintModal.customerAddress}</p>
+                     </div>
+                   )}
                 </div>
              </div>
 
+             {/* Items Table */}
              <div className="flex-1 overflow-hidden">
                 <table className="w-full border-collapse" style={{ tableLayout: 'fixed' }}>
                    <thead>
                       <tr className="bg-slate-50 text-slate-500">
-                         <th className="p-3 text-right font-black text-[9px] border-b-2 border-slate-100" style={{ width: '40%' }}>شرح کالا</th>
-                         <th className="p-3 text-center font-black text-[9px] border-b-2 border-slate-100" style={{ width: '15%' }}>تعداد</th>
-                         <th className="p-3 text-center font-black text-[9px] border-b-2 border-slate-100" style={{ width: '20%' }}>فی</th>
-                         <th className="p-3 text-center font-black text-[9px] border-b-2 border-slate-100" style={{ width: '25%' }}>جمع کل</th>
+                         <th className="p-3 text-right font-black text-[10px] border-b-2 border-slate-100" style={{ width: '45%' }}>شرح کالا</th>
+                         <th className="p-3 text-center font-black text-[10px] border-b-2 border-slate-100" style={{ width: '15%' }}>تعداد</th>
+                         <th className="p-3 text-center font-black text-[10px] border-b-2 border-slate-100" style={{ width: '20%' }}>فی</th>
+                         <th className="p-3 text-center font-black text-[10px] border-b-2 border-slate-100" style={{ width: '20%' }}>جمع کل</th>
                       </tr>
                    </thead>
                    <tbody className="divide-y divide-slate-100">
                       {showPrintModal.items.map((item, i) => (
                          <tr key={i}>
-                            <td className="p-3 text-[10px] font-black text-slate-800 break-words whitespace-normal leading-relaxed">{item.name}</td>
-                            <td className="p-3 text-center font-black text-[10px] text-slate-600">{toPersianNumbers(item.quantity)}</td>
-                            <td className="p-3 text-center font-black text-[9px] text-slate-600">{toPersianNumbers(formatWithCommas(item.price))}</td>
-                            <td className="p-3 text-center font-black text-[10px] text-indigo-600">{toPersianNumbers(formatWithCommas(item.price * item.quantity))}</td>
+                            <td className="p-3 text-[11px] font-black text-slate-800 break-words whitespace-normal leading-relaxed">{item.name}</td>
+                            <td className="p-3 text-center font-black text-[11px] text-slate-600">{toPersianNumbers(item.quantity)}</td>
+                            <td className="p-3 text-center font-black text-[10px] text-slate-600">{toPersianNumbers(formatWithCommas(item.price))}</td>
+                            <td className="p-3 text-center font-black text-[11px] text-indigo-600">{toPersianNumbers(formatWithCommas(item.price * item.quantity))}</td>
                          </tr>
                       ))}
-                      {Array.from({ length: Math.max(0, 8 - showPrintModal.items.length) }).map((_, i) => (
+                      {/* Empty rows to fill the space */}
+                      {Array.from({ length: Math.max(0, 10 - showPrintModal.items.length) }).map((_, i) => (
                         <tr key={`empty-${i}`} className="h-8"><td colSpan={4}></td></tr>
                       ))}
                    </tbody>
                 </table>
              </div>
 
+             {/* Totals and Footer */}
              <div className="mt-8 shrink-0">
-                <div className="bg-slate-900 p-6 rounded-[2rem] text-white flex justify-between items-center shadow-xl">
+                <div className="bg-slate-900 p-6 rounded-[2rem] text-white flex justify-between items-center shadow-xl mb-8">
                    <div>
-                      <p className="text-[8px] font-black opacity-50 mb-0.5 tracking-widest uppercase">مبلغ نهایی (TOTAL)</p>
-                      <p className="text-xl font-black text-emerald-400">{formatCurrency(showPrintModal.totalAmount)}</p>
+                      <p className="text-[9px] font-black opacity-40 mb-1 uppercase tracking-widest">مبلغ نهایی (TOTAL)</p>
+                      <p className="text-2xl font-black text-emerald-400">{formatCurrency(showPrintModal.totalAmount)}</p>
                    </div>
-                   <div className="text-left border-r border-white/10 pr-5">
-                      <div className="text-[7px] font-black text-emerald-400 mb-0.5 uppercase tracking-widest">Confirmed</div>
-                      <div className="text-sm font-black text-white/90">تـسـویه شـد</div>
-                   </div>
-                </div>
-
-                <div className="mt-8 grid grid-cols-2 gap-6">
-                   <div className="text-center">
-                      <p className="text-[8px] font-black text-slate-300 mb-6 uppercase tracking-widest">مهر و امضای فروشگاه</p>
-                      <div className="w-16 h-16 border-2 border-slate-50 rounded-full mx-auto flex items-center justify-center opacity-10">
-                        <span className="text-[6px] font-black rotate-45">STAMP</span>
-                      </div>
-                   </div>
-                   <div className="text-center">
-                      <p className="text-[8px] font-black text-slate-300 mb-6 uppercase tracking-widest">امضای خریدار</p>
-                      <div className="h-16 border-b border-slate-100 flex items-end justify-center pb-1">
-                         <span className="text-[6px] font-bold text-slate-200 uppercase tracking-tighter">Approved</span>
-                      </div>
+                   <div className="text-left border-r border-white/10 pr-6">
+                      <div className="text-[8px] font-black text-emerald-400 mb-1 uppercase tracking-widest">PAYMENT STATUS</div>
+                      <div className="text-base font-black text-white/90">تـسـویه شـد</div>
                    </div>
                 </div>
 
-                <div className="mt-8 text-center border-t border-slate-50 pt-4">
-                   <p className="text-[9px] text-slate-600 font-black leading-loose">
+                <div className="grid grid-cols-2 gap-8 mb-10">
+                   <div className="text-center">
+                      <p className="text-[10px] font-black text-slate-300 mb-10 uppercase tracking-widest">مهر و امضای فروشگاه</p>
+                      <div className="w-16 h-16 border-2 border-slate-100 rounded-full mx-auto flex items-center justify-center opacity-10">
+                        <span className="text-[8px] font-black rotate-45 tracking-widest">SEAL</span>
+                      </div>
+                   </div>
+                   <div className="text-center">
+                      <p className="text-[10px] font-black text-slate-300 mb-10 uppercase tracking-widest">امضای خریدار</p>
+                      <div className="h-16 border-b-2 border-slate-50 flex items-end justify-center pb-2">
+                         <span className="text-[8px] font-bold text-slate-100 uppercase tracking-tighter italic">Signature</span>
+                      </div>
+                   </div>
+                </div>
+
+                <div className="text-center border-t border-slate-100 pt-6">
+                   <p className="text-[12px] text-slate-700 font-black leading-loose">
                       از خرید شما سپاسگزاریم. <br/>
                       ممنون از اینکه سیرجان پوش را انتخاب کردید.
                    </p>
