@@ -48,9 +48,7 @@
         }
 
         /* 
-           قطعی‌ترین روش برای چاپ در وب:
-           1. همه چیز را مخفی کن.
-           2. فقط فاکتور را نمایش بده.
+           Improved Printing Strategy:
         */
         @media print {
             @page {
@@ -58,31 +56,26 @@
                 margin: 0;
             }
             
-            /* مخفی کردن تمام المان‌های صفحه */
-            html, body {
-                height: 100%;
-                margin: 0 !important;
-                padding: 0 !important;
-                background: #fff !important;
-            }
-
-            body * {
-                visibility: hidden !important;
+            /* Hide UI components using visibility to keep layout flow if needed, 
+               but effectively remove them from the print canvas. */
+            .no-print, header, aside, .saving-loader {
                 display: none !important;
             }
 
-            /* نمایش فاکتور و فرزندان آن */
-            #printable-invoice, 
-            #printable-invoice * {
-                visibility: visible !important;
-                display: flex !important;
+            body {
+                background: #fff !important;
             }
 
-            /* استایل دهی به فاکتور برای پرینت */
+            #root {
+                margin: 0 !important;
+                padding: 0 !important;
+            }
+
+            /* The core fix: Make the printable area dominant */
             #printable-invoice {
+                visibility: visible !important;
                 display: flex !important;
-                flex-direction: column !important;
-                position: absolute !important;
+                position: fixed !important;
                 left: 0 !important;
                 top: 0 !important;
                 width: 148mm !important;
@@ -90,24 +83,16 @@
                 margin: 0 !important;
                 padding: 10mm !important;
                 background: #fff !important;
-                z-index: 99999 !important;
+                z-index: 999999 !important;
                 border: none !important;
                 box-shadow: none !important;
             }
 
-            /* اصلاح نمایش جدول در پرینت */
-            #printable-invoice table {
-                display: table !important;
-            }
-            #printable-invoice tr {
-                display: table-row !important;
-            }
-            #printable-invoice th, #printable-invoice td {
-                display: table-cell !important;
-            }
-            
-            .no-print {
-                display: none !important;
+            /* Ensure everything else is hidden */
+            body > *:not(#root), #root > *:not(main), main *:not(#printable-invoice) {
+                visibility: hidden !important;
+                height: 0 !important;
+                overflow: hidden !important;
             }
         }
 
@@ -158,9 +143,9 @@
     "html2canvas": "https://esm.sh/html2canvas@1.4.1",
     "jspdf": "https://esm.sh/jspdf@2.5.1",
     "@neondatabase/serverless": "https://esm.sh/@neondatabase/serverless@1.0.2",
+    "vite": "https://esm.sh/vite@^7.3.1",
     "react-dom/": "https://esm.sh/react-dom@^19.2.4/",
     "react/": "https://esm.sh/react@^19.2.4/",
-    "vite": "https://esm.sh/vite@^7.3.1",
     "@vitejs/plugin-react": "https://esm.sh/@vitejs/plugin-react@^5.1.2"
   }
 }

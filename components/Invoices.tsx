@@ -297,9 +297,6 @@ const Invoices: React.FC<InvoicesProps> = ({ data, setData, currentUser }) => {
           </div>
 
           <div className="invoice-preview-wrapper w-full flex justify-center pb-20">
-            {/* 
-               IMPORTANT: #printable-invoice must be at a level where it can be styled independently for print
-            */}
             <div ref={invoiceRef} id="printable-invoice" className="invoice-preview-container bg-white flex flex-col rtl-fix">
               <div className="flex justify-between items-start mb-10 pt-4">
                 <div className="rtl-fix">
@@ -320,10 +317,10 @@ const Invoices: React.FC<InvoicesProps> = ({ data, setData, currentUser }) => {
                       <div className="flex items-center justify-between gap-4 border-b border-white/10 pb-3">
                         <div className="space-y-1 flex-1">
                           <p className="text-[8px] font-black opacity-40 uppercase tracking-widest">مشتری گرامی (Buyer)</p>
-                          <p className="text-xl font-black text-white truncate max-w-[200px]">{showPrintModal.customerName}</p>
+                          <p className="text-xl font-black text-white leading-tight break-words">{showPrintModal.customerName}</p>
                         </div>
                         {showPrintModal.customerPhone && (
-                          <div className="bg-emerald-500 text-slate-900 px-4 py-2 rounded-xl font-black text-xs shadow-lg shrink-0">
+                          <div className="bg-emerald-500 text-slate-900 px-4 py-2 rounded-xl font-black text-xs shadow-lg shrink-0 h-fit">
                              {toPersianNumbers(showPrintModal.customerPhone)} 📞
                           </div>
                         )}
@@ -331,7 +328,7 @@ const Invoices: React.FC<InvoicesProps> = ({ data, setData, currentUser }) => {
                       {showPrintModal.customerAddress && (
                         <div className="space-y-1">
                           <p className="text-[8px] font-black opacity-40 uppercase tracking-widest">نشانی ارسال (Address)</p>
-                          <p className="text-[11px] font-bold text-slate-300 leading-relaxed line-clamp-2">{showPrintModal.customerAddress}</p>
+                          <p className="text-[12px] font-bold text-slate-300 leading-relaxed break-words">{showPrintModal.customerAddress}</p>
                         </div>
                       )}
                    </div>
