@@ -15,6 +15,7 @@ const Inventory: React.FC<InventoryProps> = ({ data, setData, currentUser }) => 
   const [searchTerm, setSearchTerm] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [isImporting, setIsImporting] = useState(false);
   const [formData, setFormData] = useState({
     code: '', name: '', buyPrice: '', shippingCost: '', marginPercent: '', quantity: '', date: getCurrentJalaliDate()
   });
@@ -69,7 +70,6 @@ const Inventory: React.FC<InventoryProps> = ({ data, setData, currentUser }) => 
   };
 
   const handleNumericChange = (field: string, value: string) => {
-    // تبدیل آنی به انگلیسی و حذف هر کاراکتر غیر عددی
     const cleanValue = toEnglishDigits(value).replace(/[^0-9]/g, '');
     setFormData(prev => ({ ...prev, [field]: cleanValue }));
   };
@@ -98,7 +98,74 @@ const Inventory: React.FC<InventoryProps> = ({ data, setData, currentUser }) => 
     const ws = XLSX.utils.json_to_sheet(wsData);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Inventory_SirjanPoosh");
-    XLSX.writeFile(wb, `Inventory_Report_${toEnglishDigits(getCurrentJalaliDate()).replace(/\//g, '-')}.xlsx`);
+    XLSX.writeFile(wb, `Inventory_Full_Report_${toEnglishDigits(getCurrentJalaliDate()).replace(/\//g, '-')}.xlsx`);
+  };
+
+  const downloadTemplate = () => {
+    const templateData = [
+      {
+        'کد کالا': '1001',
+        'نام کالا': 'تیشرت نخی طرح‌دار',
+        'قیمت خرید': '150000',
+        'هزینه کرایه': '5000',
+        'درصد سود': '30',
+        'موجودی': '10',
+        'تاریخ ثبت': getCurrentJalaliDate()
+      }
+    ];
+    const ws = XLSX.utils.json_to_sheet(templateData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Template");
+    XLSX.writeFile(wb, "SirjanPoosh_Import_Template.xlsx");
+  };
+
+  const handleExcelImport = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsImporting(true);
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      try {
+        const bstr = evt.target?.result;
+        const wb = XLSX.read(bstr, { type: 'binary' });
+        const wsname = wb.SheetNames[0];
+        const ws = wb.Sheets[wsname];
+        const rawData = XLSX.utils.sheet_to_json(ws);
+
+        const newProducts: Product[] = rawData.map((row: any, index) => {
+          const buyPrice = parseRawNumber(row['قیمت خرید'] || 0);
+          const shippingCost = parseRawNumber(row['هزینه کرایه'] || 0);
+          const marginPercent = parseRawNumber(row['درصد سود'] || 0);
+          const totalCost = buyPrice + shippingCost;
+          const sellPrice = Math.round(totalCost + (totalCost * (marginPercent / 100)));
+
+          return {
+            id: (Date.now() + index).toString(),
+            code: toPersianNumbers(row['کد کالا'] || ''),
+            name: String(row['نام کالا'] || 'کالای بدون نام'),
+            buyPrice,
+            shippingCost,
+            marginPercent,
+            quantity: parseRawNumber(row['موجودی'] || 0),
+            sellPrice,
+            date: toPersianNumbers(row['تاریخ ثبت'] || getCurrentJalaliDate()),
+            registeredBy: currentUser.username
+          };
+        });
+
+        if (newProducts.length === 0) throw new Error('فایل اکسل خالی است یا فرمت اشتباه دارد.');
+
+        setData({ ...data, products: [...data.products, ...newProducts] });
+        alert(`✅ تعداد ${toPersianNumbers(newProducts.length)} کالا با موفقیت وارد شد.`);
+      } catch (err: any) {
+        alert('❌ خطا در خواندن فایل اکسل: ' + err.message);
+      } finally {
+        setIsImporting(false);
+        e.target.value = '';
+      }
+    };
+    reader.readAsBinaryString(file);
   };
 
   const filtered = (data.products || []).filter(p => 
@@ -107,14 +174,31 @@ const Inventory: React.FC<InventoryProps> = ({ data, setData, currentUser }) => 
 
   return (
     <div className="space-y-4 md:space-y-6 animate-fadeIn pb-16 w-full">
-      <div className="flex flex-col md:flex-row justify-between items-stretch gap-3 bg-white p-4 md:p-6 rounded-[1.5rem] md:rounded-[2.5rem] shadow-sm border border-slate-100">
+      <div className="flex flex-col xl:flex-row justify-between items-stretch gap-4 bg-white p-5 md:p-7 rounded-[2.2rem] md:rounded-[3rem] shadow-sm border border-slate-100">
         <div className="relative flex-1">
-          <input type="text" placeholder="جستجوی نام یا کد کالا..." className="w-full pr-10 py-3 md:py-4.5 bg-slate-50 border-2 border-transparent rounded-xl md:rounded-2xl outline-none focus:border-indigo-500 font-bold transition-all text-xs md:text-sm shadow-inner" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
-          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-lg opacity-30">🔍</span>
+          <input type="text" placeholder="جستجوی نام یا کد کالا..." className="w-full pr-12 py-4.5 bg-slate-50 border-none rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500/20 font-bold transition-all text-sm shadow-inner" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+          <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xl opacity-30">🔍</span>
         </div>
-        <div className="flex gap-2 h-[48px] md:h-auto">
-          <button onClick={() => { setEditingProduct(null); setFormData({ code: '', name: '', buyPrice: '', shippingCost: '', marginPercent: '', quantity: '', date: getCurrentJalaliDate() }); setShowModal(true); }} className="flex-1 md:flex-none bg-indigo-600 text-white px-4 md:px-10 rounded-xl md:rounded-2xl font-black hover:bg-indigo-700 shadow-xl transition-all active:scale-95 text-xs md:text-base">+ کالا جدید</button>
-          <button onClick={exportToExcel} className="bg-green-600 text-white px-4 rounded-xl md:rounded-2xl font-black hover:bg-green-700 shadow-lg transition-all active:scale-95 flex items-center justify-center text-lg md:text-xl" title="خروجی اکسل کامل">📊</button>
+        
+        <div className="flex flex-wrap gap-2.5">
+          <button onClick={() => { setEditingProduct(null); setFormData({ code: '', name: '', buyPrice: '', shippingCost: '', marginPercent: '', quantity: '', date: getCurrentJalaliDate() }); setShowModal(true); }} className="bg-indigo-600 text-white px-8 py-4.5 rounded-2xl font-black hover:bg-indigo-700 shadow-xl shadow-indigo-100 transition-all active:scale-95 text-sm">+ کالا جدید</button>
+          
+          <div className="flex gap-2">
+            <div className="relative overflow-hidden bg-emerald-600 text-white px-5 py-4.5 rounded-2xl font-black hover:bg-emerald-700 shadow-xl shadow-emerald-100 transition-all active:scale-95 flex items-center justify-center gap-2 cursor-pointer">
+              <input type="file" accept=".xlsx, .xls" className="absolute inset-0 opacity-0 cursor-pointer" onChange={handleExcelImport} disabled={isImporting} />
+              <span className="text-lg">📥</span>
+              <span className="text-xs whitespace-nowrap">{isImporting ? 'در حال بارگذاری...' : 'ورود دسته جمعی'}</span>
+            </div>
+            
+            <button onClick={downloadTemplate} className="bg-slate-100 text-slate-600 px-5 py-4.5 rounded-2xl font-black hover:bg-slate-200 transition-all flex items-center justify-center gap-2" title="دانلود نمونه اکسل">
+              <span className="text-lg">📄</span>
+              <span className="text-[10px] hidden sm:inline">نمونه اکسل</span>
+            </button>
+            
+            <button onClick={exportToExcel} className="bg-blue-600 text-white px-5 py-4.5 rounded-2xl font-black hover:bg-blue-700 shadow-xl shadow-blue-100 transition-all flex items-center justify-center text-lg" title="خروجی گزارش انبار">
+              📊
+            </button>
+          </div>
         </div>
       </div>
 
