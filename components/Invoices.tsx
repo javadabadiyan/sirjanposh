@@ -116,16 +116,16 @@ const Invoices: React.FC<InvoicesProps> = ({ data, setData, currentUser }) => {
   const captureInvoice = async () => {
     if (!invoiceRef.current) return null;
     
-    // Ensure all styles are applied and fonts are ready
+    // Ensure fonts are ready for high-quality capture
     await document.fonts.ready;
 
-    // Remove any transform temporarily to avoid capture issues
+    // Temporarily reset styles for capture
     const originalTransform = invoiceRef.current.style.transform;
     invoiceRef.current.style.transform = 'none';
 
     try {
       const canvas = await html2canvas(invoiceRef.current, {
-        scale: 4, // Higher scale for ultra-crisp text
+        scale: 4, // Ultra-high resolution
         useCORS: true,
         allowTaint: true,
         backgroundColor: "#ffffff",
@@ -136,6 +136,7 @@ const Invoices: React.FC<InvoicesProps> = ({ data, setData, currentUser }) => {
             clonedContainer.style.transform = 'none';
             clonedContainer.style.margin = '0';
             clonedContainer.style.position = 'relative';
+            clonedContainer.style.display = 'flex';
           }
         }
       });
@@ -171,7 +172,6 @@ const Invoices: React.FC<InvoicesProps> = ({ data, setData, currentUser }) => {
         orientation: 'p',
         unit: 'mm',
         format: 'a5',
-        putOnlyUsedFonts: true,
         compress: true
       });
 
@@ -410,7 +410,7 @@ const Invoices: React.FC<InvoicesProps> = ({ data, setData, currentUser }) => {
           </div>
 
           <div className="invoice-preview-wrapper no-scrollbar overflow-x-hidden w-full flex justify-center pb-12">
-            <div ref={invoiceRef} id="printable-invoice" className="invoice-preview-container bg-white p-8 md:p-10 relative overflow-hidden flex flex-col">
+            <div ref={invoiceRef} id="printable-invoice" className="invoice-preview-container invoice-print-only bg-white p-8 md:p-10 relative overflow-hidden flex flex-col">
               <div className="absolute top-0 right-0 left-0 h-3 bg-slate-900"></div>
               
               <div className="flex justify-between items-start mb-8 pt-2">
@@ -439,19 +439,19 @@ const Invoices: React.FC<InvoicesProps> = ({ data, setData, currentUser }) => {
              </div>
 
              <div className="flex-1 overflow-hidden">
-                <table className="w-full border-collapse">
+                <table className="w-full border-collapse" style={{ tableLayout: 'fixed' }}>
                    <thead>
                       <tr className="bg-slate-50 text-slate-500">
-                         <th className="p-3 text-right font-black text-[9px] border-b-2 border-slate-100">شرح کالا</th>
-                         <th className="p-3 text-center font-black text-[9px] border-b-2 border-slate-100">تعداد</th>
-                         <th className="p-3 text-center font-black text-[9px] border-b-2 border-slate-100">فی</th>
-                         <th className="p-3 text-center font-black text-[9px] border-b-2 border-slate-100">جمع کل</th>
+                         <th className="p-3 text-right font-black text-[9px] border-b-2 border-slate-100" style={{ width: '40%' }}>شرح کالا</th>
+                         <th className="p-3 text-center font-black text-[9px] border-b-2 border-slate-100" style={{ width: '15%' }}>تعداد</th>
+                         <th className="p-3 text-center font-black text-[9px] border-b-2 border-slate-100" style={{ width: '20%' }}>فی</th>
+                         <th className="p-3 text-center font-black text-[9px] border-b-2 border-slate-100" style={{ width: '25%' }}>جمع کل</th>
                       </tr>
                    </thead>
                    <tbody className="divide-y divide-slate-100">
                       {showPrintModal.items.map((item, i) => (
                          <tr key={i}>
-                            <td className="p-3 text-[10px] font-black text-slate-800 break-words max-w-[150px]">{item.name}</td>
+                            <td className="p-3 text-[10px] font-black text-slate-800 break-words whitespace-normal leading-relaxed">{item.name}</td>
                             <td className="p-3 text-center font-black text-[10px] text-slate-600">{toPersianNumbers(item.quantity)}</td>
                             <td className="p-3 text-center font-black text-[9px] text-slate-600">{toPersianNumbers(formatWithCommas(item.price))}</td>
                             <td className="p-3 text-center font-black text-[10px] text-indigo-600">{toPersianNumbers(formatWithCommas(item.price * item.quantity))}</td>
@@ -492,9 +492,9 @@ const Invoices: React.FC<InvoicesProps> = ({ data, setData, currentUser }) => {
                 </div>
 
                 <div className="mt-8 text-center border-t border-slate-50 pt-4">
-                   <p className="text-[8px] text-slate-300 font-black leading-relaxed">
-                      سیرجان، مجتمع تجاری سیرجان پوش - تلفن: ۰۹۱۳XXXXXXX <br/>
-                      از اعتماد شما سپاسگزاریم. ۴۸ ساعت مهلت تعویض در صورت سلامت کالا.
+                   <p className="text-[9px] text-slate-600 font-black leading-loose">
+                      از خرید شما سپاسگزاریم. <br/>
+                      ممنون از اینکه سیرجان پوش را انتخاب کردید.
                    </p>
                 </div>
              </div>
