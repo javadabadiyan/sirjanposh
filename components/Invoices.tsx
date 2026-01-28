@@ -116,16 +116,16 @@ const Invoices: React.FC<InvoicesProps> = ({ data, setData, currentUser }) => {
   const captureInvoice = async () => {
     if (!invoiceRef.current) return null;
     
-    // Ensure fonts are ready
+    // Explicitly wait for fonts to ensure joined characters
     await document.fonts.ready;
 
-    // Temporarily fix the element size for consistent capture
+    // Remove any transform from the container for capture
     const originalTransform = invoiceRef.current.style.transform;
     invoiceRef.current.style.transform = 'none';
 
     try {
       const canvas = await html2canvas(invoiceRef.current, {
-        scale: 3, // High DPI capture
+        scale: 4, // High resolution for sharp text
         useCORS: true,
         allowTaint: true,
         backgroundColor: "#ffffff",
@@ -137,6 +137,9 @@ const Invoices: React.FC<InvoicesProps> = ({ data, setData, currentUser }) => {
             el.style.margin = '0';
             el.style.position = 'relative';
             el.style.display = 'flex';
+            // Force RTL for the cloned document to help html2canvas
+            el.setAttribute('dir', 'rtl');
+            el.classList.add('rtl-fix');
           }
         }
       });
@@ -154,7 +157,7 @@ const Invoices: React.FC<InvoicesProps> = ({ data, setData, currentUser }) => {
       const link = document.createElement('a');
       const safeName = toEnglishDigits(showPrintModal?.customerName || 'Customer').replace(/\s+/g, '_');
       link.download = `Invoice_${safeName}.jpg`;
-      link.href = canvas.toDataURL('image/jpeg', 0.95);
+      link.href = canvas.toDataURL('image/jpeg', 0.98);
       link.click();
     } finally {
       setIsExporting(false);
@@ -167,7 +170,7 @@ const Invoices: React.FC<InvoicesProps> = ({ data, setData, currentUser }) => {
       const canvas = await captureInvoice();
       if (!canvas) return;
       
-      const imgData = canvas.toDataURL('image/jpeg', 0.9);
+      const imgData = canvas.toDataURL('image/jpeg', 0.95);
       const pdf = new jsPDF({
         orientation: 'p',
         unit: 'mm',
@@ -178,111 +181,14 @@ const Invoices: React.FC<InvoicesProps> = ({ data, setData, currentUser }) => {
       const pdfWidth = pdf.internal.pageSize.getWidth();
       const pdfHeight = pdf.internal.pageSize.getHeight();
       
-      // Since it's an image, RTL reversal is impossible (it's a pixel-perfect snapshot)
-      pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight);
+      // We add the image - since it's a pixel-perfect capture, characters will be joined correctly.
+      pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight, undefined, 'SLOW');
       
       const safeName = toEnglishDigits(showPrintModal?.customerName || 'Customer').replace(/\s+/g, '_');
       pdf.save(`Invoice_${safeName}.pdf`);
     } finally {
       setIsExporting(false);
     }
-  };
-
-  const downloadTemplate = () => {
-    const templateData = [
-      {
-        'نام مشتری': 'علی محمدی',
-        'شماره تماس': '09123456789',
-        'آدرس': 'سیرجان، خیابان امام',
-        'کد کالا': '1001',
-        'تعداد': '1',
-        'قیمت واحد (اختیاری)': '',
-        'تاریخ فاکتور': getCurrentJalaliDate()
-      }
-    ];
-    const ws = XLSX.utils.json_to_sheet(templateData);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Invoices_Template");
-    XLSX.writeFile(wb, "SirjanPoosh_Invoice_Template.xlsx");
-  };
-
-  const handleExcelImport = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    setIsImporting(true);
-    const reader = new FileReader();
-    reader.onload = (evt) => {
-      try {
-        const bstr = evt.target?.result;
-        const wb = XLSX.read(bstr, { type: 'binary' });
-        const ws = wb.Sheets[wb.SheetNames[0]];
-        const rawData: any[] = XLSX.utils.sheet_to_json(ws);
-
-        if (rawData.length === 0) throw new Error('فایل خالی است.');
-
-        const invoiceGroups: Record<string, any[]> = {};
-        rawData.forEach(row => {
-          const key = `${row['نام مشتری']}_${row['تاریخ فاکتور']}_${row['شماره تماس']}`;
-          if (!invoiceGroups[key]) invoiceGroups[key] = [];
-          invoiceGroups[key].push(row);
-        });
-
-        const newInvoices: Invoice[] = [];
-        let updatedProducts = [...data.products];
-        let errors: string[] = [];
-
-        Object.values(invoiceGroups).forEach((group, idx) => {
-          const first = group[0];
-          const invoiceItems: InvoiceItem[] = [];
-          
-          group.forEach(row => {
-            const productCode = toEnglishDigits(row['کد کالا']).trim();
-            const product = updatedProducts.find(p => toEnglishDigits(p.code).trim() === productCode);
-            
-            if (product) {
-              const qty = parseRawNumber(row['تعداد']);
-              const price = parseRawNumber(row['قیمت واحد (اختیاری)'] || product.sellPrice);
-              
-              if (product.quantity >= qty) {
-                invoiceItems.push({ productId: product.id, name: product.name, quantity: qty, price: price });
-                const pIdx = updatedProducts.findIndex(p => p.id === product.id);
-                updatedProducts[pIdx] = { ...updatedProducts[pIdx], quantity: updatedProducts[pIdx].quantity - qty };
-              } else {
-                errors.push(`کالای ${product.name} موجودی کافی ندارد.`);
-              }
-            } else {
-              errors.push(`کد کالای ${productCode} یافت نشد.`);
-            }
-          });
-
-          if (invoiceItems.length > 0) {
-            newInvoices.push({
-              id: (Date.now() + idx).toString(),
-              customerName: String(first['نام مشتری']),
-              customerAddress: String(first['آدرس'] || ''),
-              customerPhone: toPersianNumbers(first['شماره تماس'] || ''),
-              items: invoiceItems,
-              totalAmount: invoiceItems.reduce((acc, i) => acc + (i.price * i.quantity), 0),
-              date: toPersianNumbers(first['تاریخ فاکتور'] || getCurrentJalaliDate()),
-              registeredBy: currentUser.username
-            });
-          }
-        });
-
-        if (errors.length > 0) alert("موارد خطا:\n" + errors.join("\n"));
-        if (newInvoices.length > 0) {
-          setData({ ...data, invoices: [...data.invoices, ...newInvoices], products: updatedProducts });
-          alert(`✅ ${toPersianNumbers(newInvoices.length)} فاکتور وارد شد.`);
-        }
-      } catch (err: any) {
-        alert('❌ خطا در اکسل: ' + err.message);
-      } finally {
-        setIsImporting(false);
-        e.target.value = '';
-      }
-    };
-    reader.readAsBinaryString(file);
   };
 
   const filtered = data.invoices.filter(i => 
@@ -292,7 +198,6 @@ const Invoices: React.FC<InvoicesProps> = ({ data, setData, currentUser }) => {
 
   return (
     <div className="space-y-6 animate-slide-up pb-20">
-      {/* Search and Action Bar */}
       <div className="flex flex-col xl:flex-row justify-between items-center gap-4 bg-white p-5 md:p-6 rounded-[2.2rem] md:rounded-[2.5rem] shadow-sm border border-slate-100">
         <div className="relative w-full md:flex-1">
           <input placeholder="🔍 جستجوی مشتری یا شماره تماس..." className="w-full pr-12 py-4.5 bg-slate-50 border-none rounded-2xl font-bold outline-none" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
@@ -300,21 +205,9 @@ const Invoices: React.FC<InvoicesProps> = ({ data, setData, currentUser }) => {
         </div>
         <div className="flex flex-wrap gap-2 w-full md:w-auto">
           <button onClick={() => { setEditingInvoice(null); setCustomerName(''); setCustomerAddress(''); setCustomerPhone(''); setInvoiceDate(getCurrentJalaliDate()); setItems([]); setShowModal(true); }} className="flex-1 md:flex-none bg-indigo-600 text-white px-8 py-4.5 rounded-[1.5rem] font-black shadow-xl hover:bg-indigo-700 text-sm min-h-[56px]">+ صدور فاکتور</button>
-          
-          <div className="relative overflow-hidden bg-emerald-600 text-white px-5 py-4.5 rounded-[1.5rem] font-black hover:bg-emerald-700 shadow-xl transition-all active:scale-95 flex items-center justify-center gap-2 cursor-pointer min-h-[56px]">
-            <input type="file" accept=".xlsx, .xls" className="absolute inset-0 opacity-0 cursor-pointer" onChange={handleExcelImport} disabled={isImporting} />
-            <span className="text-xl">📥</span>
-            <span className="text-xs">{isImporting ? 'درحال ورود...' : 'ورود از اکسل'}</span>
-          </div>
-          
-          <button onClick={downloadTemplate} className="bg-slate-100 text-slate-600 px-4 py-4.5 rounded-[1.5rem] font-black hover:bg-slate-200 transition-all flex items-center justify-center gap-2 min-h-[56px]">
-            <span className="text-xl">📄</span>
-            <span className="text-[10px] hidden sm:inline">نمونه اکسل</span>
-          </button>
         </div>
       </div>
 
-      {/* Invoice List */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {filtered.map(inv => (
           <div key={inv.id} className="bg-white p-7 md:p-8 rounded-[2.5rem] shadow-sm border border-slate-100 hover:shadow-xl transition-all relative">
@@ -339,7 +232,6 @@ const Invoices: React.FC<InvoicesProps> = ({ data, setData, currentUser }) => {
         ))}
       </div>
 
-      {/* Invoice Creation Modal */}
       {showModal && (
         <div className="fixed inset-0 bg-slate-900/90 backdrop-blur-md flex items-center justify-center p-0 md:p-4 z-[2000] overflow-y-auto">
           <div className="bg-white w-full h-full md:h-auto md:max-h-[95vh] md:max-w-4xl md:rounded-[3.5rem] flex flex-col overflow-hidden shadow-2xl relative">
@@ -349,9 +241,9 @@ const Invoices: React.FC<InvoicesProps> = ({ data, setData, currentUser }) => {
             </div>
             <div className="p-6 md:p-8 overflow-y-auto flex-1 space-y-6 bg-slate-50/30">
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                <div className="space-y-1.5"><label className="text-[10px] font-black text-slate-400 mr-2 uppercase">نام مشتری</label><input className="w-full p-4 bg-white border-2 border-slate-100 rounded-2xl font-bold outline-none" value={customerName} onChange={e => setCustomerName(e.target.value)} /></div>
-                <div className="space-y-1.5"><label className="text-[10px] font-black text-slate-400 mr-2 uppercase">شماره تماس</label><input className="w-full p-4 bg-white border-2 border-slate-100 rounded-2xl font-bold outline-none text-center" value={toPersianNumbers(customerPhone)} onChange={e => setCustomerPhone(e.target.value)} /></div>
-                <div className="space-y-1.5 sm:col-span-2 lg:col-span-1"><label className="text-[10px] font-black text-slate-400 mr-2 uppercase">آدرس</label><input className="w-full p-4 bg-white border-2 border-slate-100 rounded-2xl font-bold outline-none" value={customerAddress} onChange={e => setCustomerAddress(e.target.value)} /></div>
+                <div className="space-y-1.5"><label className="text-[10px] font-black text-slate-500 mr-2 uppercase">نام مشتری</label><input className="w-full p-4 bg-white border-2 border-slate-100 rounded-2xl font-bold outline-none" value={customerName} onChange={e => setCustomerName(e.target.value)} /></div>
+                <div className="space-y-1.5"><label className="text-[10px] font-black text-slate-500 mr-2 uppercase">شماره تماس</label><input className="w-full p-4 bg-white border-2 border-slate-100 rounded-2xl font-bold outline-none text-center" value={toPersianNumbers(customerPhone)} onChange={e => setCustomerPhone(e.target.value)} /></div>
+                <div className="space-y-1.5 sm:col-span-2 lg:col-span-1"><label className="text-[10px] font-black text-slate-500 mr-2 uppercase">آدرس</label><input className="w-full p-4 bg-white border-2 border-slate-100 rounded-2xl font-bold outline-none" value={customerAddress} onChange={e => setCustomerAddress(e.target.value)} /></div>
                 <div className="space-y-1.5 z-[50]"><DatePicker label="تاریخ فاکتور" value={invoiceDate} onChange={val => setInvoiceDate(val)} accentColor="indigo" /></div>
               </div>
               <div className="bg-indigo-600 p-6 md:p-8 rounded-[2rem] shadow-xl">
@@ -396,10 +288,8 @@ const Invoices: React.FC<InvoicesProps> = ({ data, setData, currentUser }) => {
         </div>
       )}
 
-      {/* A5 Print Modal with Improved PDF and Image logic */}
       {showPrintModal && (
         <div className="fixed inset-0 bg-slate-900/95 backdrop-blur-xl z-[3000] p-4 md:p-8 overflow-y-auto flex flex-col items-center safe-padding no-print">
-          {/* Top Actions Panel */}
           <div className="max-w-[148mm] w-full flex flex-wrap justify-between items-center gap-4 mb-8 bg-white/10 p-4 rounded-3xl border border-white/10 no-print">
             <div className="flex items-center gap-3">
               <button onClick={() => window.print()} className="bg-indigo-600 text-white px-5 py-3 rounded-2xl font-black text-xs hover:bg-indigo-700 transition-all flex items-center gap-2">
@@ -415,18 +305,16 @@ const Invoices: React.FC<InvoicesProps> = ({ data, setData, currentUser }) => {
             <button onClick={() => setShowPrintModal(null)} className="w-10 h-10 flex items-center justify-center bg-white/20 text-white rounded-xl hover:bg-red-500 transition-all text-xl font-light">&times;</button>
           </div>
 
-          {/* Actual Invoice Body for Print/Preview */}
           <div className="invoice-preview-wrapper w-full flex justify-center pb-20">
-            <div ref={invoiceRef} id="printable-invoice" className="invoice-preview-container bg-white flex flex-col">
-              {/* Header Design */}
+            <div ref={invoiceRef} id="printable-invoice" className="invoice-preview-container bg-white flex flex-col rtl-fix">
               <div className="absolute top-0 right-0 left-0 h-3 bg-slate-900"></div>
               
-              <div className="flex justify-between items-start mb-8 pt-4">
-                <div>
+              <div className="flex justify-between items-start mb-10 pt-4">
+                <div className="rtl-fix">
                    <h1 className="text-4xl font-black text-slate-900 mb-1 leading-none">سیرجان پوش</h1>
                    <p className="text-slate-400 font-black tracking-[0.1em] text-[7px] mr-1 uppercase">SIRJAN POOSH MANAGEMENT SYSTEM</p>
                 </div>
-                <div className="bg-slate-50 p-4 rounded-[1.5rem] border-2 border-slate-100 min-w-[140px] text-center">
+                <div className="bg-slate-50 p-4 rounded-[1.5rem] border-2 border-slate-100 min-w-[140px] text-center rtl-fix">
                    <h2 className="text-base font-black text-indigo-600 mb-2 border-b border-indigo-100 pb-1">فاکتور فروش</h2>
                    <div className="space-y-1.5 text-[10px] font-black">
                       <div className="flex justify-between gap-4 text-slate-400"><span>شماره:</span><span className="text-slate-900">{toPersianNumbers(showPrintModal.id.slice(-4))}</span></div>
@@ -435,31 +323,32 @@ const Invoices: React.FC<InvoicesProps> = ({ data, setData, currentUser }) => {
                 </div>
              </div>
 
-             {/* Customer Details Box - Better Spacing to avoid overlaps */}
-             <div className="mb-6">
-                <div className="bg-slate-900 p-6 rounded-[1.5rem] text-white shadow-xl">
-                   <div className="flex justify-between items-start mb-4">
-                      <div className="space-y-1 flex-1">
-                        <p className="text-[8px] font-black opacity-40 uppercase tracking-widest">مشتری گرامی (Buyer)</p>
-                        <p className="text-xl font-black leading-tight text-white">{showPrintModal.customerName}</p>
+             <div className="mb-8 rtl-fix">
+                <div className="bg-slate-900 p-6 rounded-[1.8rem] text-white shadow-xl relative overflow-hidden">
+                   <div className="relative z-10 flex flex-col gap-3">
+                      <div className="flex items-center justify-between gap-4 border-b border-white/10 pb-3">
+                        <div className="space-y-1">
+                          <p className="text-[8px] font-black opacity-40 uppercase tracking-widest">مشتری گرامی (Buyer)</p>
+                          <p className="text-xl font-black text-white">{showPrintModal.customerName}</p>
+                        </div>
+                        {showPrintModal.customerPhone && (
+                          <div className="bg-emerald-500 text-slate-900 px-4 py-2 rounded-xl font-black text-xs shadow-lg">
+                             {toPersianNumbers(showPrintModal.customerPhone)} 📞
+                          </div>
+                        )}
                       </div>
-                      {showPrintModal.customerPhone && (
-                        <div className="bg-emerald-500/10 text-emerald-400 px-3 py-1.5 rounded-xl font-black text-xs border border-emerald-500/20">
-                           {toPersianNumbers(showPrintModal.customerPhone)} 📞
+                      {showPrintModal.customerAddress && (
+                        <div className="space-y-1">
+                          <p className="text-[8px] font-black opacity-40 uppercase tracking-widest">نشانی ارسال (Address)</p>
+                          <p className="text-[11px] font-bold text-slate-300 leading-relaxed max-w-[90%]">{showPrintModal.customerAddress}</p>
                         </div>
                       )}
                    </div>
-                   {showPrintModal.customerAddress && (
-                     <div className="mt-2 pt-2 border-t border-white/5">
-                        <p className="text-[8px] font-black opacity-40 uppercase tracking-widest mb-1">نشانی (Address)</p>
-                        <p className="text-[10px] font-bold text-slate-300 leading-relaxed">{showPrintModal.customerAddress}</p>
-                     </div>
-                   )}
+                   <div className="absolute top-0 left-0 p-4 opacity-5 text-6xl rotate-12">👤</div>
                 </div>
              </div>
 
-             {/* Items Table */}
-             <div className="flex-1 overflow-hidden">
+             <div className="flex-1 overflow-hidden rtl-fix">
                 <table className="w-full border-collapse" style={{ tableLayout: 'fixed' }}>
                    <thead>
                       <tr className="bg-slate-50 text-slate-500">
@@ -478,7 +367,6 @@ const Invoices: React.FC<InvoicesProps> = ({ data, setData, currentUser }) => {
                             <td className="p-3 text-center font-black text-[11px] text-indigo-600">{toPersianNumbers(formatWithCommas(item.price * item.quantity))}</td>
                          </tr>
                       ))}
-                      {/* Empty rows to fill the space */}
                       {Array.from({ length: Math.max(0, 10 - showPrintModal.items.length) }).map((_, i) => (
                         <tr key={`empty-${i}`} className="h-8"><td colSpan={4}></td></tr>
                       ))}
@@ -486,9 +374,8 @@ const Invoices: React.FC<InvoicesProps> = ({ data, setData, currentUser }) => {
                 </table>
              </div>
 
-             {/* Totals and Footer */}
-             <div className="mt-8 shrink-0">
-                <div className="bg-slate-900 p-6 rounded-[2rem] text-white flex justify-between items-center shadow-xl mb-8">
+             <div className="mt-8 shrink-0 rtl-fix">
+                <div className="bg-slate-900 p-6 rounded-[2rem] text-white flex justify-between items-center shadow-xl mb-10">
                    <div>
                       <p className="text-[9px] font-black opacity-40 mb-1 uppercase tracking-widest">مبلغ نهایی (TOTAL)</p>
                       <p className="text-2xl font-black text-emerald-400">{formatCurrency(showPrintModal.totalAmount)}</p>
@@ -499,23 +386,23 @@ const Invoices: React.FC<InvoicesProps> = ({ data, setData, currentUser }) => {
                    </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-8 mb-10">
-                   <div className="text-center">
-                      <p className="text-[10px] font-black text-slate-300 mb-10 uppercase tracking-widest">مهر و امضای فروشگاه</p>
-                      <div className="w-16 h-16 border-2 border-slate-100 rounded-full mx-auto flex items-center justify-center opacity-10">
-                        <span className="text-[8px] font-black rotate-45 tracking-widest">SEAL</span>
+                <div className="grid grid-cols-2 gap-8 mb-12 px-4">
+                   <div className="text-center relative">
+                      <p className="text-[10px] font-black text-slate-400 mb-12 uppercase tracking-widest">مهر و امضای فروشگاه</p>
+                      <div className="w-20 h-20 border-2 border-slate-50 rounded-full mx-auto flex items-center justify-center opacity-5">
+                        <span className="text-[10px] font-black rotate-45 tracking-[0.2em]">SEAL</span>
                       </div>
                    </div>
                    <div className="text-center">
-                      <p className="text-[10px] font-black text-slate-300 mb-10 uppercase tracking-widest">امضای خریدار</p>
-                      <div className="h-16 border-b-2 border-slate-50 flex items-end justify-center pb-2">
-                         <span className="text-[8px] font-bold text-slate-100 uppercase tracking-tighter italic">Signature</span>
+                      <p className="text-[10px] font-black text-slate-400 mb-12 uppercase tracking-widest">امضای خریدار</p>
+                      <div className="h-20 border-b-2 border-slate-50 flex items-end justify-center pb-2">
+                         <span className="text-[9px] font-bold text-slate-100 uppercase tracking-tighter italic opacity-20">Customer Signature</span>
                       </div>
                    </div>
                 </div>
 
-                <div className="text-center border-t border-slate-100 pt-6">
-                   <p className="text-[12px] text-slate-700 font-black leading-loose">
+                <div className="text-center border-t border-slate-100 pt-8 pb-4">
+                   <p className="text-[13px] text-slate-800 font-black leading-loose">
                       از خرید شما سپاسگزاریم. <br/>
                       ممنون از اینکه سیرجان پوش را انتخاب کردید.
                    </p>

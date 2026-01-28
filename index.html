@@ -33,9 +33,11 @@
         * {
             font-family: 'Vazirmatn', Tahoma, sans-serif !important;
             -webkit-tap-highlight-color: transparent;
-            touch-action: manipulation;
             box-sizing: border-box;
+            letter-spacing: 0 !important;
+            word-spacing: 0 !important;
         }
+        
         body {
             background-color: #f8fafc;
             color: #0f172a;
@@ -44,28 +46,21 @@
             overflow-x: hidden;
             -webkit-font-smoothing: antialiased;
         }
-        
-        /* 
-           Print Solution: 
-           Fixes the white page issue by explicitly showing the printable invoice and hiding everything else.
-        */
+
+        /* Print Engine Overhaul */
         @media print {
             @page {
                 size: A5 portrait;
                 margin: 0;
             }
-            
             body {
                 background: white !important;
                 visibility: hidden !important;
             }
-
-            .no-print {
+            #root {
                 display: none !important;
-                visibility: hidden !important;
             }
-
-            #printable-invoice {
+            .invoice-print-only {
                 visibility: visible !important;
                 display: flex !important;
                 position: fixed !important;
@@ -73,34 +68,30 @@
                 left: 0 !important;
                 width: 148mm !important;
                 height: 210mm !important;
-                margin: 0 !important;
                 padding: 10mm !important;
                 background: white !important;
-                z-index: 10000 !important;
+                z-index: 99999 !important;
                 border: none !important;
-                box-shadow: none !important;
                 -webkit-print-color-adjust: exact !important;
                 print-color-adjust: exact !important;
             }
         }
 
-        /* Invoice Preview UI */
+        /* Invoice Container - Fixed A5 Ratio */
         .invoice-preview-container {
             width: 148mm;
             height: 210mm;
             background: white;
             margin: 0 auto;
-            box-shadow: 0 0 50px rgba(0,0,0,0.1);
             position: relative;
-            font-family: 'Vazirmatn', sans-serif !important;
-            overflow: hidden;
             display: flex;
             flex-direction: column;
             padding: 10mm;
             direction: rtl;
+            overflow: hidden;
             border: 1px solid #eee;
         }
-        
+
         @media (max-width: 160mm) {
             .invoice-preview-wrapper {
                 padding: 1rem;
@@ -109,11 +100,19 @@
                 overflow-x: auto;
             }
             .invoice-preview-container {
-                transform: scale(0.6);
+                transform: scale(0.65);
                 transform-origin: top center;
-                margin-bottom: -75mm;
+                margin-bottom: -65mm;
                 flex-shrink: 0;
             }
+        }
+
+        /* Fix for Persian characters separation in canvas */
+        .rtl-fix {
+            direction: rtl !important;
+            unicode-bidi: embed !important;
+            text-align: right !important;
+            letter-spacing: normal !important;
         }
 
         .saving-loader {
