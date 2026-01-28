@@ -43,46 +43,44 @@
             padding: 0;
             overflow-x: hidden;
             -webkit-font-smoothing: antialiased;
-            overscroll-behavior-y: contain;
         }
         
-        /* Print Specific Styles - Fixed for A5 Single Page */
+        /* Print Specific Styles - Robust A5 Single Page */
         @media print {
             @page {
                 size: A5 portrait;
                 margin: 0;
             }
             html, body {
-                height: 100%;
+                width: 148mm;
+                height: 210mm;
                 margin: 0 !important;
                 padding: 0 !important;
-                overflow: hidden;
+                background: white;
             }
-            body * {
-                visibility: hidden;
-            }
+            /* Hide everything by default using opacity/display to avoid breaking html2canvas clones */
+            body > *:not(#root) { display: none !important; }
+            #root > div:not(.invoice-print-container) { display: none !important; }
+            
             .no-print {
                 display: none !important;
             }
-            #printable-invoice, #printable-invoice * {
-                visibility: visible;
+            
+            #printable-invoice {
+                visibility: visible !important;
+                display: flex !important;
+                position: absolute !important;
+                top: 0 !important;
+                left: 0 !important;
+                width: 148mm !important;
+                height: 210mm !important;
+                margin: 0 !important;
+                padding: 10mm !important;
+                border: none !important;
+                box-shadow: none !important;
+                background: white !important;
                 -webkit-print-color-adjust: exact;
                 print-color-adjust: exact;
-            }
-            #printable-invoice {
-                position: fixed;
-                left: 0;
-                top: 0;
-                width: 148mm;
-                height: 210mm;
-                margin: 0;
-                padding: 8mm;
-                border: none;
-                box-shadow: none;
-                background: white;
-                display: block !important;
-                page-break-after: avoid;
-                page-break-before: avoid;
             }
         }
 
@@ -95,6 +93,9 @@
             position: relative;
             font-family: 'Vazirmatn', sans-serif !important;
             overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            padding: 10mm;
         }
         
         @media (max-width: 160mm) {
@@ -108,6 +109,7 @@
                 transform: scale(0.6);
                 transform-origin: top center;
                 margin-bottom: -80mm;
+                flex-shrink: 0;
             }
         }
 
@@ -143,8 +145,8 @@
     "html2canvas": "https://esm.sh/html2canvas@1.4.1",
     "jspdf": "https://esm.sh/jspdf@2.5.1",
     "@neondatabase/serverless": "https://esm.sh/@neondatabase/serverless@1.0.2",
-    "react/": "https://esm.sh/react@^19.2.4/",
     "react-dom/": "https://esm.sh/react-dom@^19.2.4/",
+    "react/": "https://esm.sh/react@^19.2.4/",
     "vite": "https://esm.sh/vite@^7.3.1",
     "@vitejs/plugin-react": "https://esm.sh/@vitejs/plugin-react@^5.1.2"
   }

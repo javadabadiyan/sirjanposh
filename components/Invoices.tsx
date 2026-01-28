@@ -116,30 +116,33 @@ const Invoices: React.FC<InvoicesProps> = ({ data, setData, currentUser }) => {
   const captureInvoice = async () => {
     if (!invoiceRef.current) return null;
     
-    // Ensure all styles are applied and wait for fonts
+    // Ensure all styles are applied and fonts are ready
     await document.fonts.ready;
 
-    return await html2canvas(invoiceRef.current, {
-      scale: 3,
-      useCORS: true,
-      allowTaint: true,
-      logging: false,
-      backgroundColor: "#ffffff",
-      scrollX: 0,
-      scrollY: -window.scrollY,
-      windowWidth: 148 * 3.78, // Approximately A5 width in pixels
-      windowHeight: 210 * 3.78, // Approximately A5 height in pixels
-      onclone: (clonedDoc) => {
-        // Force RTL and Font specifically in the cloned document for html2canvas
-        const container = clonedDoc.getElementById('printable-invoice');
-        if (container) {
-          container.style.transform = 'none';
-          container.style.position = 'relative';
-          container.style.margin = '0';
-          container.style.boxShadow = 'none';
+    // Remove any transform temporarily to avoid capture issues
+    const originalTransform = invoiceRef.current.style.transform;
+    invoiceRef.current.style.transform = 'none';
+
+    try {
+      const canvas = await html2canvas(invoiceRef.current, {
+        scale: 4, // Higher scale for ultra-crisp text
+        useCORS: true,
+        allowTaint: true,
+        backgroundColor: "#ffffff",
+        logging: false,
+        onclone: (clonedDoc) => {
+          const clonedContainer = clonedDoc.getElementById('printable-invoice');
+          if (clonedContainer) {
+            clonedContainer.style.transform = 'none';
+            clonedContainer.style.margin = '0';
+            clonedContainer.style.position = 'relative';
+          }
         }
-      }
-    });
+      });
+      return canvas;
+    } finally {
+      invoiceRef.current.style.transform = originalTransform;
+    }
   };
 
   const downloadJPG = async () => {
@@ -149,8 +152,8 @@ const Invoices: React.FC<InvoicesProps> = ({ data, setData, currentUser }) => {
       if (!canvas) return;
       const link = document.createElement('a');
       const safeName = toEnglishDigits(showPrintModal?.customerName || 'Customer').replace(/\s+/g, '_');
-      link.download = `Inv_${safeName}_${toEnglishDigits(getCurrentJalaliDate()).replace(/\//g, '-')}.jpg`;
-      link.href = canvas.toDataURL('image/jpeg', 0.95);
+      link.download = `Invoice_${safeName}_${toEnglishDigits(getCurrentJalaliDate()).replace(/\//g, '-')}.jpg`;
+      link.href = canvas.toDataURL('image/jpeg', 0.98);
       link.click();
     } finally {
       setIsExporting(false);
@@ -162,18 +165,23 @@ const Invoices: React.FC<InvoicesProps> = ({ data, setData, currentUser }) => {
     try {
       const canvas = await captureInvoice();
       if (!canvas) return;
-      const imgData = canvas.toDataURL('image/jpeg', 0.9);
+      
+      const imgData = canvas.toDataURL('image/jpeg', 0.95);
       const pdf = new jsPDF({
         orientation: 'p',
         unit: 'mm',
         format: 'a5',
+        putOnlyUsedFonts: true,
         compress: true
       });
+
       const pdfWidth = pdf.internal.pageSize.getWidth();
       const pdfHeight = pdf.internal.pageSize.getHeight();
+      
       pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight, undefined, 'FAST');
+      
       const safeName = toEnglishDigits(showPrintModal?.customerName || 'Customer').replace(/\s+/g, '_');
-      pdf.save(`Inv_${safeName}_${toEnglishDigits(getCurrentJalaliDate()).replace(/\//g, '-')}.pdf`);
+      pdf.save(`Invoice_${safeName}_${toEnglishDigits(getCurrentJalaliDate()).replace(/\//g, '-')}.pdf`);
     } finally {
       setIsExporting(false);
     }
@@ -405,7 +413,7 @@ const Invoices: React.FC<InvoicesProps> = ({ data, setData, currentUser }) => {
             <div ref={invoiceRef} id="printable-invoice" className="invoice-preview-container bg-white p-8 md:p-10 relative overflow-hidden flex flex-col">
               <div className="absolute top-0 right-0 left-0 h-3 bg-slate-900"></div>
               
-              <div className="flex justify-between items-start mb-10 pt-2">
+              <div className="flex justify-between items-start mb-8 pt-2">
                 <div>
                    <h1 className="text-3xl font-black text-slate-900 mb-1 leading-none">سیرجان پوش</h1>
                    <p className="text-slate-400 font-black tracking-[0.1em] text-[7px] mr-1 uppercase">SIRJAN POOSH MANAGEMENT</p>
@@ -430,7 +438,7 @@ const Invoices: React.FC<InvoicesProps> = ({ data, setData, currentUser }) => {
                 </div>
              </div>
 
-             <div className="flex-1">
+             <div className="flex-1 overflow-hidden">
                 <table className="w-full border-collapse">
                    <thead>
                       <tr className="bg-slate-50 text-slate-500">
@@ -443,7 +451,7 @@ const Invoices: React.FC<InvoicesProps> = ({ data, setData, currentUser }) => {
                    <tbody className="divide-y divide-slate-100">
                       {showPrintModal.items.map((item, i) => (
                          <tr key={i}>
-                            <td className="p-3 text-[10px] font-black text-slate-800">{item.name}</td>
+                            <td className="p-3 text-[10px] font-black text-slate-800 break-words max-w-[150px]">{item.name}</td>
                             <td className="p-3 text-center font-black text-[10px] text-slate-600">{toPersianNumbers(item.quantity)}</td>
                             <td className="p-3 text-center font-black text-[9px] text-slate-600">{toPersianNumbers(formatWithCommas(item.price))}</td>
                             <td className="p-3 text-center font-black text-[10px] text-indigo-600">{toPersianNumbers(formatWithCommas(item.price * item.quantity))}</td>
@@ -456,7 +464,7 @@ const Invoices: React.FC<InvoicesProps> = ({ data, setData, currentUser }) => {
                 </table>
              </div>
 
-             <div className="mt-8">
+             <div className="mt-8 shrink-0">
                 <div className="bg-slate-900 p-6 rounded-[2rem] text-white flex justify-between items-center shadow-xl">
                    <div>
                       <p className="text-[8px] font-black opacity-50 mb-0.5 tracking-widest uppercase">مبلغ نهایی (TOTAL)</p>
@@ -483,7 +491,7 @@ const Invoices: React.FC<InvoicesProps> = ({ data, setData, currentUser }) => {
                    </div>
                 </div>
 
-                <div className="mt-10 text-center border-t border-slate-50 pt-4">
+                <div className="mt-8 text-center border-t border-slate-50 pt-4">
                    <p className="text-[8px] text-slate-300 font-black leading-relaxed">
                       سیرجان، مجتمع تجاری سیرجان پوش - تلفن: ۰۹۱۳XXXXXXX <br/>
                       از اعتماد شما سپاسگزاریم. ۴۸ ساعت مهلت تعویض در صورت سلامت کالا.
