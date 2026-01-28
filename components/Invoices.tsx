@@ -113,6 +113,72 @@ const Invoices: React.FC<InvoicesProps> = ({ data, setData, currentUser }) => {
     setData({ ...data, invoices: data.invoices.filter(i => i.id !== invId), products: updatedProducts });
   };
 
+  const captureInvoice = async () => {
+    if (!invoiceRef.current) return null;
+    
+    // Ensure all styles are applied and wait for fonts
+    await document.fonts.ready;
+
+    return await html2canvas(invoiceRef.current, {
+      scale: 3,
+      useCORS: true,
+      allowTaint: true,
+      logging: false,
+      backgroundColor: "#ffffff",
+      scrollX: 0,
+      scrollY: -window.scrollY,
+      windowWidth: 148 * 3.78, // Approximately A5 width in pixels
+      windowHeight: 210 * 3.78, // Approximately A5 height in pixels
+      onclone: (clonedDoc) => {
+        // Force RTL and Font specifically in the cloned document for html2canvas
+        const container = clonedDoc.getElementById('printable-invoice');
+        if (container) {
+          container.style.transform = 'none';
+          container.style.position = 'relative';
+          container.style.margin = '0';
+          container.style.boxShadow = 'none';
+        }
+      }
+    });
+  };
+
+  const downloadJPG = async () => {
+    setIsExporting(true);
+    try {
+      const canvas = await captureInvoice();
+      if (!canvas) return;
+      const link = document.createElement('a');
+      const safeName = toEnglishDigits(showPrintModal?.customerName || 'Customer').replace(/\s+/g, '_');
+      link.download = `Inv_${safeName}_${toEnglishDigits(getCurrentJalaliDate()).replace(/\//g, '-')}.jpg`;
+      link.href = canvas.toDataURL('image/jpeg', 0.95);
+      link.click();
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const downloadPDF = async () => {
+    setIsExporting(true);
+    try {
+      const canvas = await captureInvoice();
+      if (!canvas) return;
+      const imgData = canvas.toDataURL('image/jpeg', 0.9);
+      const pdf = new jsPDF({
+        orientation: 'p',
+        unit: 'mm',
+        format: 'a5',
+        compress: true
+      });
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = pdf.internal.pageSize.getHeight();
+      pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight, undefined, 'FAST');
+      const safeName = toEnglishDigits(showPrintModal?.customerName || 'Customer').replace(/\s+/g, '_');
+      pdf.save(`Inv_${safeName}_${toEnglishDigits(getCurrentJalaliDate()).replace(/\//g, '-')}.pdf`);
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   const downloadTemplate = () => {
     const templateData = [
       {
@@ -128,7 +194,7 @@ const Invoices: React.FC<InvoicesProps> = ({ data, setData, currentUser }) => {
     const ws = XLSX.utils.json_to_sheet(templateData);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Invoices_Template");
-    XLSX.writeFile(wb, "SirjanPoosh_Invoice_Import_Template.xlsx");
+    XLSX.writeFile(wb, "SirjanPoosh_Invoice_Template.xlsx");
   };
 
   const handleExcelImport = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -146,7 +212,6 @@ const Invoices: React.FC<InvoicesProps> = ({ data, setData, currentUser }) => {
 
         if (rawData.length === 0) throw new Error('فایل خالی است.');
 
-        // Grouping rows by customer+date+phone to create single invoices
         const invoiceGroups: Record<string, any[]> = {};
         rawData.forEach(row => {
           const key = `${row['نام مشتری']}_${row['تاریخ فاکتور']}_${row['شماره تماس']}`;
@@ -171,20 +236,14 @@ const Invoices: React.FC<InvoicesProps> = ({ data, setData, currentUser }) => {
               const price = parseRawNumber(row['قیمت واحد (اختیاری)'] || product.sellPrice);
               
               if (product.quantity >= qty) {
-                invoiceItems.push({
-                  productId: product.id,
-                  name: product.name,
-                  quantity: qty,
-                  price: price
-                });
-                // Deduct from temp product list
+                invoiceItems.push({ productId: product.id, name: product.name, quantity: qty, price: price });
                 const pIdx = updatedProducts.findIndex(p => p.id === product.id);
                 updatedProducts[pIdx] = { ...updatedProducts[pIdx], quantity: updatedProducts[pIdx].quantity - qty };
               } else {
-                errors.push(`کالای ${product.name} (کد ${productCode}) موجودی کافی ندارد.`);
+                errors.push(`کالای ${product.name} موجودی کافی ندارد.`);
               }
             } else {
-              errors.push(`کد کالای ${productCode} در سیستم یافت نشد.`);
+              errors.push(`کد کالای ${productCode} یافت نشد.`);
             }
           });
 
@@ -202,20 +261,13 @@ const Invoices: React.FC<InvoicesProps> = ({ data, setData, currentUser }) => {
           }
         });
 
-        if (errors.length > 0) {
-          alert("برخی موارد وارد نشدند:\n" + errors.join("\n"));
-        }
-
+        if (errors.length > 0) alert("موارد خطا:\n" + errors.join("\n"));
         if (newInvoices.length > 0) {
-          setData({
-            ...data,
-            invoices: [...data.invoices, ...newInvoices],
-            products: updatedProducts
-          });
-          alert(`✅ تعداد ${toPersianNumbers(newInvoices.length)} فاکتور با موفقیت وارد شد.`);
+          setData({ ...data, invoices: [...data.invoices, ...newInvoices], products: updatedProducts });
+          alert(`✅ ${toPersianNumbers(newInvoices.length)} فاکتور وارد شد.`);
         }
       } catch (err: any) {
-        alert('❌ خطا در خواندن اکسل فاکتورها: ' + err.message);
+        alert('❌ خطا در اکسل: ' + err.message);
       } finally {
         setIsImporting(false);
         e.target.value = '';
@@ -224,55 +276,10 @@ const Invoices: React.FC<InvoicesProps> = ({ data, setData, currentUser }) => {
     reader.readAsBinaryString(file);
   };
 
-  const captureInvoice = async () => {
-    if (!invoiceRef.current) return null;
-    return await html2canvas(invoiceRef.current, {
-      scale: 3,
-      useCORS: true,
-      allowTaint: true,
-      logging: false,
-      backgroundColor: "#ffffff",
-      onclone: (clonedDoc) => {
-        const style = clonedDoc.createElement('style');
-        style.innerHTML = `
-          * { font-family: 'Vazirmatn', sans-serif !important; }
-        `;
-        clonedDoc.head.appendChild(style);
-      }
-    });
-  };
-
-  const downloadJPG = async () => {
-    setIsExporting(true);
-    try {
-      const canvas = await captureInvoice();
-      if (!canvas) return;
-      const link = document.createElement('a');
-      link.download = `Invoice_A5_${toEnglishDigits(showPrintModal?.customerName || 'Customer')}_${toEnglishDigits(getCurrentJalaliDate()).replace(/\//g, '-')}.jpg`;
-      link.href = canvas.toDataURL('image/jpeg', 0.95);
-      link.click();
-    } finally {
-      setIsExporting(false);
-    }
-  };
-
-  const downloadPDF = async () => {
-    setIsExporting(true);
-    try {
-      const canvas = await captureInvoice();
-      if (!canvas) return;
-      const imgData = canvas.toDataURL('image/png');
-      const pdf = new jsPDF('p', 'mm', 'a5');
-      const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = pdf.internal.pageSize.getHeight();
-      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-      pdf.save(`Invoice_A5_${toEnglishDigits(showPrintModal?.customerName || 'Customer')}_${toEnglishDigits(getCurrentJalaliDate()).replace(/\//g, '-')}.pdf`);
-    } finally {
-      setIsExporting(false);
-    }
-  };
-
-  const filtered = data.invoices.filter(i => i.customerName.includes(searchTerm) || toPersianNumbers(i.customerPhone || '').includes(toPersianNumbers(searchTerm))).reverse();
+  const filtered = data.invoices.filter(i => 
+    i.customerName.includes(searchTerm) || 
+    toPersianNumbers(i.customerPhone || '').includes(toPersianNumbers(searchTerm))
+  ).reverse();
 
   return (
     <div className="space-y-6 animate-slide-up pb-20">
@@ -290,7 +297,7 @@ const Invoices: React.FC<InvoicesProps> = ({ data, setData, currentUser }) => {
             <span className="text-xs">{isImporting ? 'درحال ورود...' : 'ورود از اکسل'}</span>
           </div>
           
-          <button onClick={downloadTemplate} className="bg-slate-100 text-slate-600 px-4 py-4.5 rounded-[1.5rem] font-black hover:bg-slate-200 transition-all flex items-center justify-center gap-2 min-h-[56px]" title="دانلود نمونه اکسل فاکتور">
+          <button onClick={downloadTemplate} className="bg-slate-100 text-slate-600 px-4 py-4.5 rounded-[1.5rem] font-black hover:bg-slate-200 transition-all flex items-center justify-center gap-2 min-h-[56px]">
             <span className="text-xl">📄</span>
             <span className="text-[10px] hidden sm:inline">نمونه اکسل</span>
           </button>
@@ -378,58 +385,33 @@ const Invoices: React.FC<InvoicesProps> = ({ data, setData, currentUser }) => {
       )}
 
       {showPrintModal && (
-        <div className="fixed inset-0 bg-slate-900/95 backdrop-blur-xl z-[3000] p-4 md:p-8 overflow-y-auto flex flex-col items-center safe-padding">
-          {/* Action Bar */}
-          <div className="max-w-[148mm] w-full flex flex-wrap justify-between items-center gap-4 no-print mb-8 bg-white/10 p-4 rounded-3xl border border-white/10">
+        <div className="fixed inset-0 bg-slate-900/95 backdrop-blur-xl z-[3000] p-4 md:p-8 overflow-y-auto flex flex-col items-center safe-padding no-print">
+          <div className="max-w-[148mm] w-full flex flex-wrap justify-between items-center gap-4 mb-8 bg-white/10 p-4 rounded-3xl border border-white/10">
             <div className="flex items-center gap-3">
-              <button onClick={() => window.print()} className="bg-indigo-600 text-white px-5 py-3 rounded-2xl font-black text-[10px] md:text-xs hover:bg-indigo-700 transition-all flex items-center gap-2">
+              <button onClick={() => window.print()} className="bg-indigo-600 text-white px-5 py-3 rounded-2xl font-black text-xs hover:bg-indigo-700 transition-all flex items-center gap-2">
                 <span>🖨️ چاپ A5</span>
               </button>
-              <button 
-                onClick={downloadPDF} 
-                disabled={isExporting}
-                className="bg-red-500 text-white px-5 py-3 rounded-2xl font-black text-[10px] md:text-xs hover:bg-red-600 transition-all flex items-center gap-2 disabled:opacity-50"
-              >
+              <button onClick={downloadPDF} disabled={isExporting} className="bg-red-500 text-white px-5 py-3 rounded-2xl font-black text-xs hover:bg-red-600 transition-all flex items-center gap-2 disabled:opacity-50">
                 <span>📄 PDF</span>
               </button>
-              <button 
-                onClick={downloadJPG} 
-                disabled={isExporting}
-                className="bg-emerald-500 text-white px-5 py-3 rounded-2xl font-black text-[10px] md:text-xs hover:bg-emerald-600 transition-all flex items-center gap-2 disabled:opacity-50"
-              >
+              <button onClick={downloadJPG} disabled={isExporting} className="bg-emerald-500 text-white px-5 py-3 rounded-2xl font-black text-xs hover:bg-emerald-600 transition-all flex items-center gap-2 disabled:opacity-50">
                 <span>🖼️ تصویر</span>
               </button>
             </div>
             <button onClick={() => setShowPrintModal(null)} className="w-10 h-10 flex items-center justify-center bg-white/20 text-white rounded-xl hover:bg-red-500 transition-all text-xl font-light">&times;</button>
           </div>
 
-          {/* Scale UI Loader */}
-          {isExporting && (
-            <div className="fixed inset-0 z-[4000] bg-black/60 flex items-center justify-center backdrop-blur-sm">
-                <div className="bg-white p-6 rounded-[1.5rem] text-center shadow-2xl animate-bounce">
-                    <p className="font-black text-slate-800 text-sm">آماده‌سازی فایل A5... ⏳</p>
-                </div>
-            </div>
-          )}
-
-          {/* Actual Invoice Container - Styled as A5 */}
           <div className="invoice-preview-wrapper no-scrollbar overflow-x-hidden w-full flex justify-center pb-12">
-            <div 
-              ref={invoiceRef} 
-              id="printable-invoice"
-              className="invoice-preview-container bg-white p-8 md:p-10 relative overflow-hidden flex flex-col"
-              style={{ fontFamily: "'Vazirmatn', sans-serif" }}
-            >
-              {/* Decorative Stripe */}
+            <div ref={invoiceRef} id="printable-invoice" className="invoice-preview-container bg-white p-8 md:p-10 relative overflow-hidden flex flex-col">
               <div className="absolute top-0 right-0 left-0 h-3 bg-slate-900"></div>
               
               <div className="flex justify-between items-start mb-10 pt-2">
                 <div>
-                   <h1 className="text-3xl md:text-4xl font-black text-slate-900 mb-1 leading-none">سیرجان پوش</h1>
+                   <h1 className="text-3xl font-black text-slate-900 mb-1 leading-none">سیرجان پوش</h1>
                    <p className="text-slate-400 font-black tracking-[0.1em] text-[7px] mr-1 uppercase">SIRJAN POOSH MANAGEMENT</p>
                 </div>
-                <div className="bg-slate-50 p-4 md:p-5 rounded-[1.5rem] border-2 border-slate-100 min-w-[140px] text-center">
-                   <h2 className="text-sm md:text-base font-black text-indigo-600 mb-2 border-b border-indigo-100 pb-1">فـاکـتـور فروش (A5)</h2>
+                <div className="bg-slate-50 p-4 rounded-[1.5rem] border-2 border-slate-100 min-w-[130px] text-center">
+                   <h2 className="text-sm font-black text-indigo-600 mb-2 border-b border-indigo-100 pb-1">فـاکـتـور فروش</h2>
                    <div className="space-y-1.5 text-[9px] font-black">
                       <div className="flex justify-between gap-2 text-slate-400"><span>شماره:</span><span className="text-slate-900">{toPersianNumbers(showPrintModal.id.slice(-4))}</span></div>
                       <div className="flex justify-between gap-2 text-slate-400"><span>تاریخ:</span><span className="text-slate-900">{toPersianNumbers(showPrintModal.date)}</span></div>
@@ -437,10 +419,10 @@ const Invoices: React.FC<InvoicesProps> = ({ data, setData, currentUser }) => {
                 </div>
              </div>
 
-             <div className="grid grid-cols-1 gap-4 mb-8">
+             <div className="grid grid-cols-1 gap-4 mb-6">
                 <div className="bg-slate-900 p-5 rounded-[1.5rem] text-white shadow-lg">
                    <p className="text-[7px] font-black opacity-50 mb-1.5 tracking-widest uppercase">مشتری (Buyer)</p>
-                   <p className="text-base md:text-lg font-black mb-1 leading-tight">{showPrintModal.customerName}</p>
+                   <p className="text-base font-black mb-1 leading-tight">{showPrintModal.customerName}</p>
                    <div className="flex flex-col gap-1 mt-2">
                       {showPrintModal.customerPhone && <div className="flex items-center gap-1.5 text-emerald-400 font-black text-xs"><span>📞</span> {toPersianNumbers(showPrintModal.customerPhone)}</div>}
                       {showPrintModal.customerAddress && <div className="text-slate-400 text-[8px] font-bold leading-relaxed line-clamp-2">{showPrintModal.customerAddress}</div>}
@@ -460,14 +442,13 @@ const Invoices: React.FC<InvoicesProps> = ({ data, setData, currentUser }) => {
                    </thead>
                    <tbody className="divide-y divide-slate-100">
                       {showPrintModal.items.map((item, i) => (
-                         <tr key={i} className="group">
+                         <tr key={i}>
                             <td className="p-3 text-[10px] font-black text-slate-800">{item.name}</td>
                             <td className="p-3 text-center font-black text-[10px] text-slate-600">{toPersianNumbers(item.quantity)}</td>
                             <td className="p-3 text-center font-black text-[9px] text-slate-600">{toPersianNumbers(formatWithCommas(item.price))}</td>
                             <td className="p-3 text-center font-black text-[10px] text-indigo-600">{toPersianNumbers(formatWithCommas(item.price * item.quantity))}</td>
                          </tr>
                       ))}
-                      {/* Fill empty space to maintain A5 look */}
                       {Array.from({ length: Math.max(0, 8 - showPrintModal.items.length) }).map((_, i) => (
                         <tr key={`empty-${i}`} className="h-8"><td colSpan={4}></td></tr>
                       ))}
@@ -476,11 +457,10 @@ const Invoices: React.FC<InvoicesProps> = ({ data, setData, currentUser }) => {
              </div>
 
              <div className="mt-8">
-                <div className="bg-slate-900 p-6 rounded-[2rem] text-white flex justify-between items-center shadow-xl relative overflow-hidden">
-                   <div className="absolute top-0 right-0 p-2 opacity-5 text-4xl rotate-12">👕</div>
+                <div className="bg-slate-900 p-6 rounded-[2rem] text-white flex justify-between items-center shadow-xl">
                    <div>
                       <p className="text-[8px] font-black opacity-50 mb-0.5 tracking-widest uppercase">مبلغ نهایی (TOTAL)</p>
-                      <p className="text-xl md:text-2xl font-black text-emerald-400">{formatCurrency(showPrintModal.totalAmount)}</p>
+                      <p className="text-xl font-black text-emerald-400">{formatCurrency(showPrintModal.totalAmount)}</p>
                    </div>
                    <div className="text-left border-r border-white/10 pr-5">
                       <div className="text-[7px] font-black text-emerald-400 mb-0.5 uppercase tracking-widest">Confirmed</div>
