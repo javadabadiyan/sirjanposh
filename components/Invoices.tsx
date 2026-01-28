@@ -280,10 +280,6 @@ const Invoices: React.FC<InvoicesProps> = ({ data, setData, currentUser }) => {
       )}
 
       {showPrintModal && (
-        /* 
-           Crucial Fix: Removed "no-print" from this main container 
-           to allow browser print engine to see the content.
-        */
         <div className="fixed inset-0 bg-slate-900/95 backdrop-blur-xl z-[3000] p-4 md:p-8 overflow-y-auto flex flex-col items-center safe-padding">
           <div className="max-w-[148mm] w-full flex flex-wrap justify-between items-center gap-4 mb-8 bg-white/10 p-4 rounded-3xl border border-white/10 no-print">
             <div className="flex items-center gap-3">
@@ -300,10 +296,11 @@ const Invoices: React.FC<InvoicesProps> = ({ data, setData, currentUser }) => {
             <button onClick={() => setShowPrintModal(null)} className="w-10 h-10 flex items-center justify-center bg-white/20 text-white rounded-xl hover:bg-red-500 transition-all text-xl font-light">&times;</button>
           </div>
 
-          <div className="invoice-preview-wrapper w-full flex justify-center pb-20 print-container-parent">
+          <div className="invoice-preview-wrapper w-full flex justify-center pb-20">
+            {/* 
+               IMPORTANT: #printable-invoice must be at a level where it can be styled independently for print
+            */}
             <div ref={invoiceRef} id="printable-invoice" className="invoice-preview-container bg-white flex flex-col rtl-fix">
-              <div className="absolute top-0 right-0 left-0 h-3 bg-slate-900 no-print"></div>
-              
               <div className="flex justify-between items-start mb-10 pt-4">
                 <div className="rtl-fix">
                    <h1 className="text-4xl font-black text-slate-900 mb-1 leading-none">سیرجان پوش</h1>
@@ -338,7 +335,6 @@ const Invoices: React.FC<InvoicesProps> = ({ data, setData, currentUser }) => {
                         </div>
                       )}
                    </div>
-                   <div className="absolute top-0 left-0 p-4 opacity-5 text-6xl rotate-12 no-print">👤</div>
                 </div>
              </div>
 
@@ -361,9 +357,6 @@ const Invoices: React.FC<InvoicesProps> = ({ data, setData, currentUser }) => {
                             <td className="p-3 text-center font-black text-[11px] text-indigo-600">{toPersianNumbers(formatWithCommas(item.price * item.quantity))}</td>
                          </tr>
                       ))}
-                      {Array.from({ length: Math.max(0, 10 - showPrintModal.items.length) }).map((_, i) => (
-                        <tr key={`empty-${i}`} className="h-8"><td colSpan={4}></td></tr>
-                      ))}
                    </tbody>
                 </table>
              </div>
@@ -384,13 +377,13 @@ const Invoices: React.FC<InvoicesProps> = ({ data, setData, currentUser }) => {
                    <div className="text-center relative">
                       <p className="text-[10px] font-black text-slate-400 mb-12 uppercase tracking-widest">مهر و امضای فروشگاه</p>
                       <div className="w-20 h-20 border-2 border-slate-50 rounded-full mx-auto flex items-center justify-center opacity-5">
-                        <span className="text-[10px] font-black rotate-45 tracking-[0.2em] no-print">SEAL</span>
+                        <span className="text-[10px] font-black rotate-45 tracking-[0.2em]">SEAL</span>
                       </div>
                    </div>
                    <div className="text-center">
                       <p className="text-[10px] font-black text-slate-400 mb-12 uppercase tracking-widest">امضای خریدار</p>
                       <div className="h-20 border-b-2 border-slate-50 flex items-end justify-center pb-2">
-                         <span className="text-[9px] font-bold text-slate-100 uppercase tracking-tighter italic opacity-20 no-print">Customer Signature</span>
+                         <span className="text-[9px] font-bold text-slate-100 uppercase tracking-tighter italic opacity-20">Customer Signature</span>
                       </div>
                    </div>
                 </div>

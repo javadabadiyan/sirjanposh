@@ -48,9 +48,9 @@
         }
 
         /* 
-           Improved Print Logic:
-           We use a safer approach to hide elements during print 
-           to avoid breaking the layout of the target invoice.
+           قطعی‌ترین روش برای چاپ در وب:
+           1. همه چیز را مخفی کن.
+           2. فقط فاکتور را نمایش بده.
         */
         @media print {
             @page {
@@ -58,45 +58,56 @@
                 margin: 0;
             }
             
-            /* Hide UI components but keep their parents if they contain the invoice */
-            .no-print {
-                display: none !important;
+            /* مخفی کردن تمام المان‌های صفحه */
+            html, body {
+                height: 100%;
+                margin: 0 !important;
+                padding: 0 !important;
+                background: #fff !important;
+            }
+
+            body * {
                 visibility: hidden !important;
-            }
-
-            /* Global hide strategy that doesn't break React DOM nesting */
-            body {
-                background: white !important;
-            }
-            
-            /* Root and other layouts are hidden by making children invisible, 
-               EXCEPT our targeted printable invoice ID */
-            #root > *:not(.print-container-parent) {
                 display: none !important;
             }
 
-            /* Ensure the specific invoice takes the full A5 page */
-            #printable-invoice {
+            /* نمایش فاکتور و فرزندان آن */
+            #printable-invoice, 
+            #printable-invoice * {
                 visibility: visible !important;
                 display: flex !important;
+            }
+
+            /* استایل دهی به فاکتور برای پرینت */
+            #printable-invoice {
+                display: flex !important;
+                flex-direction: column !important;
                 position: absolute !important;
-                top: 0 !important;
                 left: 0 !important;
+                top: 0 !important;
                 width: 148mm !important;
                 height: 210mm !important;
                 margin: 0 !important;
                 padding: 10mm !important;
-                z-index: 9999 !important;
+                background: #fff !important;
+                z-index: 99999 !important;
                 border: none !important;
                 box-shadow: none !important;
             }
 
-            /* Hide everything else while printing */
-            body * {
-                visibility: hidden;
+            /* اصلاح نمایش جدول در پرینت */
+            #printable-invoice table {
+                display: table !important;
             }
-            #printable-invoice, #printable-invoice * {
-                visibility: visible !important;
+            #printable-invoice tr {
+                display: table-row !important;
+            }
+            #printable-invoice th, #printable-invoice td {
+                display: table-cell !important;
+            }
+            
+            .no-print {
+                display: none !important;
             }
         }
 
@@ -133,26 +144,6 @@
         .rtl-fix {
             direction: rtl !important;
             text-align: right !important;
-        }
-
-        .saving-loader {
-            position: fixed;
-            bottom: 1.5rem;
-            left: 50%;
-            transform: translateX(-50%);
-            z-index: 1000;
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-            background: rgba(15, 23, 42, 0.9);
-            backdrop-filter: blur(8px);
-            color: white;
-            padding: 1rem 2rem;
-            border-radius: 2rem;
-            font-size: 0.8rem;
-            font-weight: 900;
-            box-shadow: 0 15px 30px rgba(0,0,0,0.3);
-            white-space: nowrap;
         }
     </style>
     <script type="importmap">
