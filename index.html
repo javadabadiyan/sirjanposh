@@ -47,37 +47,41 @@
             -webkit-font-smoothing: antialiased;
         }
 
-        /* Print Engine Overhaul */
+        /* 
+           Print Solution Fix:
+           We hide everything except the specific invoice container during print.
+        */
         @media print {
             @page {
                 size: A5 portrait;
                 margin: 0;
             }
-            body {
-                background: white !important;
+            body * {
                 visibility: hidden !important;
             }
-            #root {
-                display: none !important;
-            }
-            .invoice-print-only {
+            #printable-invoice, #printable-invoice * {
                 visibility: visible !important;
-                display: flex !important;
+            }
+            #printable-invoice {
                 position: fixed !important;
-                top: 0 !important;
                 left: 0 !important;
+                top: 0 !important;
                 width: 148mm !important;
                 height: 210mm !important;
                 padding: 10mm !important;
+                margin: 0 !important;
                 background: white !important;
                 z-index: 99999 !important;
-                border: none !important;
+                display: flex !important;
+                flex-direction: column !important;
                 -webkit-print-color-adjust: exact !important;
                 print-color-adjust: exact !important;
             }
+            .no-print {
+                display: none !important;
+            }
         }
 
-        /* Invoice Container - Fixed A5 Ratio */
         .invoice-preview-container {
             width: 148mm;
             height: 210mm;
@@ -102,17 +106,14 @@
             .invoice-preview-container {
                 transform: scale(0.65);
                 transform-origin: top center;
-                margin-bottom: -65mm;
+                margin-bottom: -70mm;
                 flex-shrink: 0;
             }
         }
 
-        /* Fix for Persian characters separation in canvas */
         .rtl-fix {
             direction: rtl !important;
-            unicode-bidi: embed !important;
             text-align: right !important;
-            letter-spacing: normal !important;
         }
 
         .saving-loader {

@@ -26,7 +26,6 @@ const Invoices: React.FC<InvoicesProps> = ({ data, setData, currentUser }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [showPrintModal, setShowPrintModal] = useState<Invoice | null>(null);
   const [isExporting, setIsExporting] = useState(false);
-  const [isImporting, setIsImporting] = useState(false);
   
   const invoiceRef = useRef<HTMLDivElement>(null);
 
@@ -115,17 +114,15 @@ const Invoices: React.FC<InvoicesProps> = ({ data, setData, currentUser }) => {
 
   const captureInvoice = async () => {
     if (!invoiceRef.current) return null;
-    
-    // Explicitly wait for fonts to ensure joined characters
     await document.fonts.ready;
 
-    // Remove any transform from the container for capture
+    // Temporarily fix visual scale for capture
     const originalTransform = invoiceRef.current.style.transform;
     invoiceRef.current.style.transform = 'none';
 
     try {
       const canvas = await html2canvas(invoiceRef.current, {
-        scale: 4, // High resolution for sharp text
+        scale: 4, // 4x quality
         useCORS: true,
         allowTaint: true,
         backgroundColor: "#ffffff",
@@ -137,9 +134,6 @@ const Invoices: React.FC<InvoicesProps> = ({ data, setData, currentUser }) => {
             el.style.margin = '0';
             el.style.position = 'relative';
             el.style.display = 'flex';
-            // Force RTL for the cloned document to help html2canvas
-            el.setAttribute('dir', 'rtl');
-            el.classList.add('rtl-fix');
           }
         }
       });
@@ -180,8 +174,6 @@ const Invoices: React.FC<InvoicesProps> = ({ data, setData, currentUser }) => {
 
       const pdfWidth = pdf.internal.pageSize.getWidth();
       const pdfHeight = pdf.internal.pageSize.getHeight();
-      
-      // We add the image - since it's a pixel-perfect capture, characters will be joined correctly.
       pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight, undefined, 'SLOW');
       
       const safeName = toEnglishDigits(showPrintModal?.customerName || 'Customer').replace(/\s+/g, '_');
@@ -198,7 +190,7 @@ const Invoices: React.FC<InvoicesProps> = ({ data, setData, currentUser }) => {
 
   return (
     <div className="space-y-6 animate-slide-up pb-20">
-      <div className="flex flex-col xl:flex-row justify-between items-center gap-4 bg-white p-5 md:p-6 rounded-[2.2rem] md:rounded-[2.5rem] shadow-sm border border-slate-100">
+      <div className="flex flex-col xl:flex-row justify-between items-center gap-4 bg-white p-5 md:p-6 rounded-[2.2rem] md:rounded-[2.5rem] shadow-sm border border-slate-100 no-print">
         <div className="relative w-full md:flex-1">
           <input placeholder="🔍 جستجوی مشتری یا شماره تماس..." className="w-full pr-12 py-4.5 bg-slate-50 border-none rounded-2xl font-bold outline-none" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
           <span className="absolute right-4 top-1/2 -translate-y-1/2 opacity-30">🔍</span>
@@ -208,7 +200,7 @@ const Invoices: React.FC<InvoicesProps> = ({ data, setData, currentUser }) => {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 no-print">
         {filtered.map(inv => (
           <div key={inv.id} className="bg-white p-7 md:p-8 rounded-[2.5rem] shadow-sm border border-slate-100 hover:shadow-xl transition-all relative">
             <div className="absolute top-0 right-0 w-2 h-full bg-indigo-600 rounded-r-full"></div>
@@ -233,7 +225,7 @@ const Invoices: React.FC<InvoicesProps> = ({ data, setData, currentUser }) => {
       </div>
 
       {showModal && (
-        <div className="fixed inset-0 bg-slate-900/90 backdrop-blur-md flex items-center justify-center p-0 md:p-4 z-[2000] overflow-y-auto">
+        <div className="fixed inset-0 bg-slate-900/90 backdrop-blur-md flex items-center justify-center p-0 md:p-4 z-[2000] overflow-y-auto no-print">
           <div className="bg-white w-full h-full md:h-auto md:max-h-[95vh] md:max-w-4xl md:rounded-[3.5rem] flex flex-col overflow-hidden shadow-2xl relative">
             <div className="p-6 md:p-8 bg-slate-900 text-white flex justify-between items-center shrink-0">
               <h3 className="text-lg md:text-2xl font-black">{editingInvoice ? 'ویرایش فاکتور' : 'صدور فاکتور جدید'}</h3>
@@ -326,12 +318,12 @@ const Invoices: React.FC<InvoicesProps> = ({ data, setData, currentUser }) => {
                 <div className="bg-slate-900 p-6 rounded-[1.8rem] text-white shadow-xl relative overflow-hidden">
                    <div className="relative z-10 flex flex-col gap-3">
                       <div className="flex items-center justify-between gap-4 border-b border-white/10 pb-3">
-                        <div className="space-y-1">
+                        <div className="space-y-1 flex-1">
                           <p className="text-[8px] font-black opacity-40 uppercase tracking-widest">مشتری گرامی (Buyer)</p>
-                          <p className="text-xl font-black text-white">{showPrintModal.customerName}</p>
+                          <p className="text-xl font-black text-white truncate max-w-[200px]">{showPrintModal.customerName}</p>
                         </div>
                         {showPrintModal.customerPhone && (
-                          <div className="bg-emerald-500 text-slate-900 px-4 py-2 rounded-xl font-black text-xs shadow-lg">
+                          <div className="bg-emerald-500 text-slate-900 px-4 py-2 rounded-xl font-black text-xs shadow-lg shrink-0">
                              {toPersianNumbers(showPrintModal.customerPhone)} 📞
                           </div>
                         )}
@@ -339,7 +331,7 @@ const Invoices: React.FC<InvoicesProps> = ({ data, setData, currentUser }) => {
                       {showPrintModal.customerAddress && (
                         <div className="space-y-1">
                           <p className="text-[8px] font-black opacity-40 uppercase tracking-widest">نشانی ارسال (Address)</p>
-                          <p className="text-[11px] font-bold text-slate-300 leading-relaxed max-w-[90%]">{showPrintModal.customerAddress}</p>
+                          <p className="text-[11px] font-bold text-slate-300 leading-relaxed line-clamp-2">{showPrintModal.customerAddress}</p>
                         </div>
                       )}
                    </div>
