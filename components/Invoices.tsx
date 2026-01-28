@@ -312,7 +312,6 @@ const Invoices: React.FC<InvoicesProps> = ({ data, setData, currentUser }) => {
               <div className="flex justify-between items-start mb-10 pt-4">
                 <div className="rtl-fix">
                    <h1 className="text-4xl font-black text-slate-900 mb-1 leading-none">سیرجان پوش</h1>
-                   <p className="text-slate-400 font-black tracking-[0.1em] text-[7px] mr-1 uppercase">SIRJAN POOSH MANAGEMENT SYSTEM</p>
                 </div>
                 <div className="bg-slate-50 p-4 rounded-[1.5rem] border-2 border-slate-100 min-w-[140px] text-center rtl-fix">
                    <h2 className="text-base font-black text-indigo-600 mb-2 border-b border-indigo-100 pb-1">فاکتور فروش</h2>
