@@ -1,5 +1,7 @@
 
-import React, { useState, useEffect, useRef } from 'react';
+// Fix: Use namespace import for React to resolve JSX intrinsic element errors
+import * as React from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { toPersianNumbers, toEnglishDigits, getCurrentJalaliDate, getJalaliMonthDays, JALALI_MONTH_NAMES } from '../utils/formatters';
 
 interface DatePickerProps {

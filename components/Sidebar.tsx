@@ -1,5 +1,6 @@
 
-import React from 'react';
+// Fix: Use namespace import for React to resolve JSX intrinsic element errors
+import * as React from 'react';
 
 interface SidebarProps {
   activeTab: string;

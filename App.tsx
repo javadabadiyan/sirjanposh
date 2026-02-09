@@ -1,5 +1,7 @@
 
-import React, { useState, useEffect } from 'react';
+// Fix: Use namespace import for React to resolve JSX intrinsic element errors
+import * as React from 'react';
+import { useState, useEffect } from 'react';
 import { AppData, User } from './types';
 import Dashboard from './components/Dashboard';
 import Inventory from './components/Inventory';

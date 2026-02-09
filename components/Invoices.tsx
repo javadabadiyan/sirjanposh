@@ -1,5 +1,7 @@
 
-import React, { useState, useRef } from 'react';
+// Fix: Use namespace import for React to resolve JSX intrinsic element errors
+import * as React from 'react';
+import { useState, useRef } from 'react';
 import { AppData, Invoice, InvoiceItem, Product, User } from '../types';
 import { formatCurrency, toPersianNumbers, getCurrentJalaliDate, formatWithCommas, toEnglishDigits, parseRawNumber } from '../utils/formatters';
 import DatePicker from './DatePicker';
@@ -26,6 +28,7 @@ const Invoices: React.FC<InvoicesProps> = ({ data, setData, currentUser }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [showPrintModal, setShowPrintModal] = useState<Invoice | null>(null);
   const [isExporting, setIsExporting] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
   
   const invoiceRef = useRef<HTMLDivElement>(null);
 
@@ -112,29 +115,175 @@ const Invoices: React.FC<InvoicesProps> = ({ data, setData, currentUser }) => {
     setData({ ...data, invoices: data.invoices.filter(i => i.id !== invId), products: updatedProducts });
   };
 
+  // --- EXCEL FEATURES ---
+
+  const downloadInvoiceTemplate = () => {
+    const templateData = [
+      {
+        'نام مشتری': 'علی علوی',
+        'شماره تماس': '09120000000',
+        'آدرس': 'سیرجان، بلوار اصلی',
+        'کد کالا': '1001',
+        'تعداد': '2',
+        'تاریخ': getCurrentJalaliDate()
+      },
+      {
+        'نام مشتری': 'علی علوی',
+        'شماره تماس': '09120000000',
+        'آدرس': 'سیرجان، بلوار اصلی',
+        'کد کالا': '1002',
+        'تعداد': '1',
+        'تاریخ': getCurrentJalaliDate()
+      },
+      {
+        'نام مشتری': 'زهرا زهدی',
+        'شماره تماس': '09350000000',
+        'آدرس': 'کرمان، خیابان آزادی',
+        'کد کالا': '1001',
+        'تعداد': '1',
+        'تاریخ': getCurrentJalaliDate()
+      }
+    ];
+    const ws = XLSX.utils.json_to_sheet(templateData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Invoices_Template");
+    XLSX.writeFile(wb, "SirjanPoosh_Invoice_Import_Template.xlsx");
+  };
+
+  const exportAllInvoicesToExcel = () => {
+    const wsData = data.invoices.flatMap(inv => 
+      inv.items.map(item => ({
+        'شناسه فاکتور': toEnglishDigits(inv.id),
+        'تاریخ': toEnglishDigits(inv.date),
+        'نام مشتری': inv.customerName,
+        'شماره تماس': toEnglishDigits(inv.customerPhone || ''),
+        'آدرس': inv.customerAddress,
+        'نام کالا': item.name,
+        'تعداد': item.quantity,
+        'قیمت واحد (تومان)': item.price,
+        'جمع ردیف (تومان)': item.price * item.quantity,
+        'جمع کل فاکتور (تومان)': inv.totalAmount,
+        'ثبت کننده': inv.registeredBy
+      }))
+    );
+
+    const ws = XLSX.utils.json_to_sheet(wsData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Invoices_Report");
+    XLSX.writeFile(wb, `Invoices_Report_${toEnglishDigits(getCurrentJalaliDate()).replace(/\//g, '-')}.xlsx`);
+  };
+
+  const handleExcelImport = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsImporting(true);
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      try {
+        const bstr = evt.target?.result;
+        const wb = XLSX.read(bstr, { type: 'binary' });
+        const wsname = wb.SheetNames[0];
+        const ws = wb.Sheets[wsname];
+        const rawData = XLSX.utils.sheet_to_json(ws);
+
+        if (rawData.length === 0) throw new Error('فایل اکسل خالی است.');
+
+        // Group rows by Customer Name and Date to create single invoices
+        const groups: Record<string, any[]> = {};
+        rawData.forEach((row: any) => {
+          const key = `${row['نام مشتری']}_${row['تاریخ']}`;
+          if (!groups[key]) groups[key] = [];
+          groups[key].push(row);
+        });
+
+        const newInvoices: Invoice[] = [];
+        let currentProducts = [...data.products];
+        let errors: string[] = [];
+
+        Object.values(groups).forEach((groupRows, index) => {
+          const firstRow = groupRows[0];
+          const invoiceItems: InvoiceItem[] = [];
+          let totalAmount = 0;
+
+          groupRows.forEach(row => {
+            const productCode = toEnglishDigits(String(row['کد کالا'] || '')).trim();
+            const product = currentProducts.find(p => toEnglishDigits(p.code).trim() === productCode);
+            const quantity = parseRawNumber(row['تعداد']);
+
+            if (!product) {
+              errors.push(`کالایی با کد ${productCode} برای مشتری ${row['نام مشتری']} یافت نشد.`);
+              return;
+            }
+
+            if (product.quantity < quantity) {
+              errors.push(`موجودی کالای ${product.name} برای فاکتور ${row['نام مشتری']} کافی نیست.`);
+              return;
+            }
+
+            // Update local stock for subsequent items in the same import
+            const prodIdx = currentProducts.findIndex(p => p.id === product.id);
+            currentProducts[prodIdx] = { ...currentProducts[prodIdx], quantity: currentProducts[prodIdx].quantity - quantity };
+
+            invoiceItems.push({
+              productId: product.id,
+              name: product.name,
+              quantity: quantity,
+              price: product.sellPrice
+            });
+            totalAmount += product.sellPrice * quantity;
+          });
+
+          if (invoiceItems.length > 0) {
+            newInvoices.push({
+              id: (Date.now() + index).toString(),
+              customerName: firstRow['نام مشتری'],
+              customerPhone: toPersianNumbers(firstRow['شماره تماس'] || ''),
+              customerAddress: firstRow['آدرس'] || '',
+              items: invoiceItems,
+              totalAmount,
+              date: toPersianNumbers(firstRow['تاریخ'] || getCurrentJalaliDate()),
+              registeredBy: currentUser.username
+            });
+          }
+        });
+
+        if (errors.length > 0) {
+          alert('⚠️ برخی ردیف‌ها با خطا مواجه شدند:\n' + errors.join('\n'));
+        }
+
+        if (newInvoices.length > 0) {
+          setData({
+            ...data,
+            invoices: [...data.invoices, ...newInvoices],
+            products: currentProducts
+          });
+          alert(`✅ تعداد ${toPersianNumbers(newInvoices.length)} فاکتور با موفقیت از اکسل وارد شد.`);
+        }
+      } catch (err: any) {
+        alert('❌ خطا در پردازش اکسل: ' + err.message);
+      } finally {
+        setIsImporting(false);
+        e.target.value = '';
+      }
+    };
+    reader.readAsBinaryString(file);
+  };
+
+  // --- PRINT & EXPORT IMAGE/PDF ---
+
   const captureInvoice = async () => {
     if (!invoiceRef.current) return null;
     await document.fonts.ready;
-
     const originalTransform = invoiceRef.current.style.transform;
     invoiceRef.current.style.transform = 'none';
-
     try {
       const canvas = await html2canvas(invoiceRef.current, {
         scale: 4, 
         useCORS: true,
         allowTaint: true,
         backgroundColor: "#ffffff",
-        logging: false,
-        onclone: (clonedDoc) => {
-          const el = clonedDoc.getElementById('printable-invoice');
-          if (el) {
-            el.style.transform = 'none';
-            el.style.margin = '0';
-            el.style.position = 'relative';
-            el.style.display = 'flex';
-          }
-        }
+        logging: false
       });
       return canvas;
     } finally {
@@ -162,19 +311,11 @@ const Invoices: React.FC<InvoicesProps> = ({ data, setData, currentUser }) => {
     try {
       const canvas = await captureInvoice();
       if (!canvas) return;
-      
       const imgData = canvas.toDataURL('image/jpeg', 0.95);
-      const pdf = new jsPDF({
-        orientation: 'p',
-        unit: 'mm',
-        format: 'a5',
-        compress: true
-      });
-
+      const pdf = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a5', compress: true });
       const pdfWidth = pdf.internal.pageSize.getWidth();
       const pdfHeight = pdf.internal.pageSize.getHeight();
       pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight, undefined, 'SLOW');
-      
       const safeName = toEnglishDigits(showPrintModal?.customerName || 'Customer').replace(/\s+/g, '_');
       pdf.save(`Invoice_${safeName}.pdf`);
     } finally {
@@ -191,11 +332,31 @@ const Invoices: React.FC<InvoicesProps> = ({ data, setData, currentUser }) => {
     <div className="space-y-6 animate-slide-up pb-20">
       <div className="flex flex-col xl:flex-row justify-between items-center gap-4 bg-white p-5 md:p-6 rounded-[2.2rem] md:rounded-[2.5rem] shadow-sm border border-slate-100 no-print">
         <div className="relative w-full md:flex-1">
-          <input placeholder="🔍 جستجوی مشتری یا شماره تماس..." className="w-full pr-12 py-4.5 bg-slate-50 border-none rounded-2xl font-bold outline-none" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+          <input placeholder="🔍 جستجوی مشتری یا شماره تماس..." className="w-full pr-12 py-4.5 bg-slate-50 border-none rounded-2xl font-bold outline-none shadow-inner" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
           <span className="absolute right-4 top-1/2 -translate-y-1/2 opacity-30">🔍</span>
         </div>
+        
         <div className="flex flex-wrap gap-2 w-full md:w-auto">
-          <button onClick={() => { setEditingInvoice(null); setCustomerName(''); setCustomerAddress(''); setCustomerPhone(''); setInvoiceDate(getCurrentJalaliDate()); setItems([]); setShowModal(true); }} className="flex-1 md:flex-none bg-indigo-600 text-white px-8 py-4.5 rounded-[1.5rem] font-black shadow-xl hover:bg-indigo-700 text-sm min-h-[56px]">+ صدور فاکتور</button>
+          <button onClick={() => { setEditingInvoice(null); setCustomerName(''); setCustomerAddress(''); setCustomerPhone(''); setInvoiceDate(getCurrentJalaliDate()); setItems([]); setShowModal(true); }} className="flex-1 md:flex-none bg-indigo-600 text-white px-8 py-4.5 rounded-[1.5rem] font-black shadow-xl hover:bg-indigo-700 text-sm min-h-[56px] transition-all active:scale-95">
+            + صدور فاکتور
+          </button>
+          
+          <div className="flex gap-2">
+            <button onClick={exportAllInvoicesToExcel} className="bg-blue-600 text-white px-5 py-4.5 rounded-2xl font-black hover:bg-blue-700 shadow-xl transition-all active:scale-95 flex items-center justify-center text-lg" title="خروجی اکسل گزارش">
+              📊
+            </button>
+            
+            <div className="relative overflow-hidden bg-emerald-600 text-white px-5 py-4.5 rounded-2xl font-black hover:bg-emerald-700 shadow-xl transition-all active:scale-95 flex items-center justify-center gap-2 cursor-pointer min-h-[56px]">
+              <input type="file" accept=".xlsx, .xls" className="absolute inset-0 opacity-0 cursor-pointer" onChange={handleExcelImport} disabled={isImporting} />
+              <span className="text-lg">📥</span>
+              <span className="text-xs whitespace-nowrap">{isImporting ? 'در حال بارگذاری...' : 'ورود از اکسل'}</span>
+            </div>
+            
+            <button onClick={downloadInvoiceTemplate} className="bg-slate-100 text-slate-600 px-5 py-4.5 rounded-2xl font-black hover:bg-slate-200 transition-all flex items-center justify-center gap-2 min-h-[56px]" title="دانلود قالب اکسل فاکتور">
+              <span className="text-lg">📄</span>
+              <span className="text-[10px] hidden sm:inline">نمونه</span>
+            </button>
+          </div>
         </div>
       </div>
 

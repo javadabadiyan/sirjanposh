@@ -1,5 +1,7 @@
 
-import React, { useState, useEffect } from 'react';
+// Fix: Use namespace import for React to resolve JSX intrinsic element errors
+import * as React from 'react';
+import { useState, useEffect } from 'react';
 import { AppData, Partner, PaymentHistory, InvestmentRecord, User } from '../types';
 import { formatCurrency, toPersianNumbers, getCurrentJalaliDate, parseRawNumber, toEnglishDigits, formatWithCommas } from '../utils/formatters';
 import DatePicker from './DatePicker';
