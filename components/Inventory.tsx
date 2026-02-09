@@ -18,6 +18,7 @@ const Inventory: React.FC<InventoryProps> = ({ data, setData, currentUser }) => 
   const [showModal, setShowModal] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [isImporting, setIsImporting] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [formData, setFormData] = useState({
     code: '', name: '', buyPrice: '', shippingCost: '', marginPercent: '', quantity: '', date: getCurrentJalaliDate()
   });
@@ -76,8 +77,36 @@ const Inventory: React.FC<InventoryProps> = ({ data, setData, currentUser }) => 
     setFormData(prev => ({ ...prev, [field]: cleanValue }));
   };
 
+  const toggleSelect = (id: string) => {
+    setSelectedIds(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]);
+  };
+
+  const toggleSelectAll = () => {
+    const filtered = data.products.filter(p => 
+      p.name.includes(searchTerm) || toPersianNumbers(p.code).includes(toPersianNumbers(searchTerm))
+    );
+    if (selectedIds.length === filtered.length) {
+      setSelectedIds([]);
+    } else {
+      setSelectedIds(filtered.map(p => p.id));
+    }
+  };
+
+  const bulkDelete = () => {
+    if (!confirm(`آیا از حذف ${toPersianNumbers(selectedIds.length)} کالا به صورت دائمی اطمینان دارید؟`)) return;
+    setData({
+      ...data,
+      products: data.products.filter(p => !selectedIds.includes(p.id))
+    });
+    setSelectedIds([]);
+  };
+
   const exportToExcel = () => {
-    const wsData = data.products.map(p => {
+    const targetProducts = selectedIds.length > 0 
+      ? data.products.filter(p => selectedIds.includes(p.id))
+      : data.products;
+
+    const wsData = targetProducts.map(p => {
       const sold = getSoldCount(p.id);
       const profitPerUnit = p.sellPrice - (p.buyPrice + p.shippingCost);
       return {
@@ -100,7 +129,7 @@ const Inventory: React.FC<InventoryProps> = ({ data, setData, currentUser }) => 
     const ws = XLSX.utils.json_to_sheet(wsData);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Inventory_SirjanPoosh");
-    XLSX.writeFile(wb, `Inventory_Full_Report_${toEnglishDigits(getCurrentJalaliDate()).replace(/\//g, '-')}.xlsx`);
+    XLSX.writeFile(wb, `Inventory_Report_${toEnglishDigits(getCurrentJalaliDate()).replace(/\//g, '-')}.xlsx`);
   };
 
   const downloadTemplate = () => {
@@ -175,11 +204,34 @@ const Inventory: React.FC<InventoryProps> = ({ data, setData, currentUser }) => 
   );
 
   return (
-    <div className="space-y-4 md:space-y-6 animate-fadeIn pb-16 w-full">
+    <div className="space-y-4 md:space-y-6 animate-fadeIn pb-32 w-full">
+      {/* نوار ابزار حذف دسته‌جمعی */}
+      {selectedIds.length > 0 && (
+        <div className="fixed bottom-10 left-1/2 -translate-x-1/2 z-[100] bg-slate-900/95 backdrop-blur-xl px-8 py-5 rounded-[2.5rem] shadow-2xl flex items-center gap-8 border border-white/10 animate-slide-up no-print">
+          <div className="flex flex-col">
+            <span className="text-[10px] font-black text-indigo-400 uppercase tracking-widest">انتخاب شده</span>
+            <span className="text-white font-black text-xl">{toPersianNumbers(selectedIds.length)} کالا</span>
+          </div>
+          <div className="h-10 w-px bg-white/10"></div>
+          <div className="flex gap-3">
+            <button onClick={bulkDelete} className="bg-red-500 hover:bg-red-600 text-white px-6 py-3 rounded-2xl font-black text-sm transition-all shadow-xl shadow-red-500/20 active:scale-95">🗑️ حذف دسته‌جمعی</button>
+            <button onClick={() => setSelectedIds([])} className="bg-white/10 hover:bg-white/20 text-white px-6 py-3 rounded-2xl font-black text-sm transition-all active:scale-95">انصراف</button>
+          </div>
+        </div>
+      )}
+
       <div className="flex flex-col xl:flex-row justify-between items-stretch gap-4 bg-white p-5 md:p-7 rounded-[2.2rem] md:rounded-[3rem] shadow-sm border border-slate-100">
-        <div className="relative flex-1">
-          <input type="text" placeholder="جستجوی نام یا کد کالا..." className="w-full pr-12 py-4.5 bg-slate-50 border-none rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500/20 font-bold transition-all text-sm shadow-inner" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
-          <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xl opacity-30">🔍</span>
+        <div className="relative flex-1 flex gap-2">
+          <div className="relative flex-1">
+            <input type="text" placeholder="جستجوی نام یا کد کالا..." className="w-full pr-12 py-4.5 bg-slate-50 border-none rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500/20 font-bold transition-all text-sm shadow-inner" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+            <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xl opacity-30">🔍</span>
+          </div>
+          <button 
+            onClick={toggleSelectAll} 
+            className={`px-5 py-4.5 rounded-2xl font-black text-xs transition-all flex items-center gap-2 whitespace-nowrap ${selectedIds.length === filtered.length && filtered.length > 0 ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}
+          >
+            {selectedIds.length === filtered.length && filtered.length > 0 ? '✓ لغو انتخاب' : '📋 انتخاب همه'}
+          </button>
         </div>
         
         <div className="flex flex-wrap gap-2.5">
@@ -210,12 +262,18 @@ const Inventory: React.FC<InventoryProps> = ({ data, setData, currentUser }) => 
           const totalInventory = p.quantity + sold;
           const isLowStock = p.quantity <= 3;
           const unitProfit = p.sellPrice - (p.buyPrice + p.shippingCost);
+          const isSelected = selectedIds.includes(p.id);
 
           return (
-            <div key={p.id} className="bg-white p-5 md:p-7 rounded-[1.8rem] md:rounded-[3rem] border border-slate-100 shadow-sm hover:shadow-xl transition-all relative overflow-hidden group">
-              <div className={`absolute top-0 right-0 w-1.5 h-full transition-colors ${isLowStock ? 'bg-red-500 animate-pulse' : 'bg-indigo-600'}`}></div>
+            <div key={p.id} onClick={() => toggleSelect(p.id)} className={`bg-white p-5 md:p-7 rounded-[1.8rem] md:rounded-[3rem] border-2 shadow-sm hover:shadow-xl transition-all relative overflow-hidden group cursor-pointer ${isSelected ? 'border-indigo-500 bg-indigo-50/10' : 'border-transparent'}`}>
+              <div className={`absolute top-0 right-0 w-1.5 h-full transition-colors ${isSelected ? 'bg-indigo-600' : isLowStock ? 'bg-red-500 animate-pulse' : 'bg-slate-200'}`}></div>
               
-              <div className="flex justify-between items-start mb-4 md:mb-6">
+              {/* چک باکس بصری */}
+              <div className={`absolute top-5 left-5 w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all ${isSelected ? 'bg-indigo-600 border-indigo-600' : 'border-slate-200'}`}>
+                {isSelected && <span className="text-white text-xs">✓</span>}
+              </div>
+
+              <div className="flex justify-between items-start mb-4 md:mb-6 mt-4">
                 <div className="space-y-1 overflow-hidden pr-2">
                   <span className="text-[8px] font-black text-indigo-500 bg-indigo-50 px-2 py-0.5 rounded-md uppercase tracking-widest">{toPersianNumbers(p.code)}</span>
                   <h4 className="font-black text-slate-800 text-base md:text-lg leading-tight truncate">{p.name}</h4>
@@ -224,7 +282,7 @@ const Inventory: React.FC<InventoryProps> = ({ data, setData, currentUser }) => 
                     <p className="text-[8px] text-indigo-400 font-black">توسط: {p.registeredBy || 'ناشناس'}</p>
                   </div>
                 </div>
-                {isLowStock && (
+                {isLowStock && !isSelected && (
                   <div className="bg-red-100 text-red-600 p-1.5 rounded-lg text-sm md:text-lg animate-bounce shrink-0">⚠️</div>
                 )}
               </div>
@@ -275,7 +333,7 @@ const Inventory: React.FC<InventoryProps> = ({ data, setData, currentUser }) => 
                 </div>
               </div>
 
-              <div className="flex gap-2">
+              <div className="flex gap-2" onClick={e => e.stopPropagation()}>
                 <button onClick={() => { setEditingProduct(p); setFormData({ code: p.code, name: p.name, buyPrice: p.buyPrice.toString(), shippingCost: p.shippingCost.toString(), marginPercent: p.marginPercent.toString(), quantity: p.quantity.toString(), date: p.date }); setShowModal(true); }} className="flex-[2] bg-slate-100 text-slate-700 py-3 md:py-4 rounded-xl md:rounded-2xl font-black text-[10px] md:text-xs hover:bg-indigo-600 hover:text-white transition-all shadow-sm active:scale-95 min-h-[44px]">📝 ویرایش</button>
                 <button onClick={() => { if(confirm('حذف کالا؟')) setData({...data, products: data.products.filter(item => item.id !== p.id)}) }} className="flex-1 bg-red-50 text-red-500 px-3 rounded-xl md:rounded-2xl font-black text-xs hover:bg-red-600 hover:text-white transition-all min-h-[44px]">🗑️</button>
               </div>
@@ -285,7 +343,7 @@ const Inventory: React.FC<InventoryProps> = ({ data, setData, currentUser }) => 
       </div>
 
       {showModal && (
-        <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-slate-900/90 backdrop-blur-md safe-padding">
+        <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-slate-900/90 backdrop-blur-md safe-padding no-print">
           <div className="bg-white w-full h-full md:h-auto md:max-h-[95vh] md:max-w-2xl md:rounded-[2.5rem] shadow-2xl relative z-[1100] flex flex-col animate-fadeIn overflow-hidden">
             <div className="px-5 py-4 md:px-10 md:py-6 bg-white border-b border-slate-100 flex justify-between items-center shrink-0">
               <h3 className="text-lg md:text-xl font-black text-slate-900">{editingProduct ? 'ویرایش کالا' : 'ثبت کالای جدید'}</h3>

@@ -27,6 +27,7 @@ const Invoices: React.FC<InvoicesProps> = ({ data, setData, currentUser }) => {
   const [qty, setQty] = useState(1);
   const [searchTerm, setSearchTerm] = useState('');
   const [showPrintModal, setShowPrintModal] = useState<Invoice | null>(null);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [isExporting, setIsExporting] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
   
@@ -115,7 +116,47 @@ const Invoices: React.FC<InvoicesProps> = ({ data, setData, currentUser }) => {
     setData({ ...data, invoices: data.invoices.filter(i => i.id !== invId), products: updatedProducts });
   };
 
-  // --- EXCEL FEATURES ---
+  const toggleSelect = (id: string) => {
+    setSelectedIds(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]);
+  };
+
+  const toggleSelectAll = () => {
+    const filtered = data.invoices.filter(i => 
+      i.customerName.includes(searchTerm) || 
+      toPersianNumbers(i.customerPhone || '').includes(toPersianNumbers(searchTerm))
+    );
+    if (selectedIds.length === filtered.length) {
+      setSelectedIds([]);
+    } else {
+      setSelectedIds(filtered.map(i => i.id));
+    }
+  };
+
+  const bulkDeleteInvoices = () => {
+    if (!confirm(`آیا از حذف ${toPersianNumbers(selectedIds.length)} فاکتور و بازگشت خودکار تمامی کالاها به انبار اطمینان دارید؟`)) return;
+
+    let updatedProducts = [...data.products];
+    const invoicesToDelete = data.invoices.filter(inv => selectedIds.includes(inv.id));
+
+    invoicesToDelete.forEach(inv => {
+      inv.items.forEach(soldItem => {
+        const prodIdx = updatedProducts.findIndex(p => p.id === soldItem.productId);
+        if (prodIdx > -1) {
+          updatedProducts[prodIdx] = {
+            ...updatedProducts[prodIdx],
+            quantity: updatedProducts[prodIdx].quantity + soldItem.quantity
+          };
+        }
+      });
+    });
+
+    setData({
+      ...data,
+      invoices: data.invoices.filter(inv => !selectedIds.includes(inv.id)),
+      products: updatedProducts
+    });
+    setSelectedIds([]);
+  };
 
   const downloadInvoiceTemplate = () => {
     const templateData = [
@@ -134,14 +175,6 @@ const Invoices: React.FC<InvoicesProps> = ({ data, setData, currentUser }) => {
         'کد کالا': '1002',
         'تعداد': '1',
         'تاریخ': getCurrentJalaliDate()
-      },
-      {
-        'نام مشتری': 'زهرا زهدی',
-        'شماره تماس': '09350000000',
-        'آدرس': 'کرمان، خیابان آزادی',
-        'کد کالا': '1001',
-        'تعداد': '1',
-        'تاریخ': getCurrentJalaliDate()
       }
     ];
     const ws = XLSX.utils.json_to_sheet(templateData);
@@ -151,7 +184,11 @@ const Invoices: React.FC<InvoicesProps> = ({ data, setData, currentUser }) => {
   };
 
   const exportAllInvoicesToExcel = () => {
-    const wsData = data.invoices.flatMap(inv => 
+    const targetInvoices = selectedIds.length > 0 
+      ? data.invoices.filter(inv => selectedIds.includes(inv.id))
+      : data.invoices;
+
+    const wsData = targetInvoices.flatMap(inv => 
       inv.items.map(item => ({
         'شناسه فاکتور': toEnglishDigits(inv.id),
         'تاریخ': toEnglishDigits(inv.date),
@@ -189,7 +226,6 @@ const Invoices: React.FC<InvoicesProps> = ({ data, setData, currentUser }) => {
 
         if (rawData.length === 0) throw new Error('فایل اکسل خالی است.');
 
-        // Group rows by Customer Name and Date to create single invoices
         const groups: Record<string, any[]> = {};
         rawData.forEach((row: any) => {
           const key = `${row['نام مشتری']}_${row['تاریخ']}`;
@@ -221,7 +257,6 @@ const Invoices: React.FC<InvoicesProps> = ({ data, setData, currentUser }) => {
               return;
             }
 
-            // Update local stock for subsequent items in the same import
             const prodIdx = currentProducts.findIndex(p => p.id === product.id);
             currentProducts[prodIdx] = { ...currentProducts[prodIdx], quantity: currentProducts[prodIdx].quantity - quantity };
 
@@ -269,8 +304,6 @@ const Invoices: React.FC<InvoicesProps> = ({ data, setData, currentUser }) => {
     };
     reader.readAsBinaryString(file);
   };
-
-  // --- PRINT & EXPORT IMAGE/PDF ---
 
   const captureInvoice = async () => {
     if (!invoiceRef.current) return null;
@@ -329,11 +362,34 @@ const Invoices: React.FC<InvoicesProps> = ({ data, setData, currentUser }) => {
   ).reverse();
 
   return (
-    <div className="space-y-6 animate-slide-up pb-20">
+    <div className="space-y-6 animate-slide-up pb-32">
+      {/* نوار ابزار حذف دسته‌جمعی */}
+      {selectedIds.length > 0 && (
+        <div className="fixed bottom-10 left-1/2 -translate-x-1/2 z-[100] bg-slate-900/95 backdrop-blur-xl px-8 py-5 rounded-[2.5rem] shadow-2xl flex items-center gap-8 border border-white/10 animate-slide-up no-print">
+          <div className="flex flex-col">
+            <span className="text-[10px] font-black text-indigo-400 uppercase tracking-widest">انتخاب شده</span>
+            <span className="text-white font-black text-xl">{toPersianNumbers(selectedIds.length)} فاکتور</span>
+          </div>
+          <div className="h-10 w-px bg-white/10"></div>
+          <div className="flex gap-3">
+            <button onClick={bulkDeleteInvoices} className="bg-red-500 hover:bg-red-600 text-white px-6 py-3 rounded-2xl font-black text-sm transition-all shadow-xl shadow-red-500/20 active:scale-95">🗑️ حذف گروهی و بازگشت به انبار</button>
+            <button onClick={() => setSelectedIds([])} className="bg-white/10 hover:bg-white/20 text-white px-6 py-3 rounded-2xl font-black text-sm transition-all active:scale-95">انصراف</button>
+          </div>
+        </div>
+      )}
+
       <div className="flex flex-col xl:flex-row justify-between items-center gap-4 bg-white p-5 md:p-6 rounded-[2.2rem] md:rounded-[2.5rem] shadow-sm border border-slate-100 no-print">
-        <div className="relative w-full md:flex-1">
-          <input placeholder="🔍 جستجوی مشتری یا شماره تماس..." className="w-full pr-12 py-4.5 bg-slate-50 border-none rounded-2xl font-bold outline-none shadow-inner" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
-          <span className="absolute right-4 top-1/2 -translate-y-1/2 opacity-30">🔍</span>
+        <div className="relative w-full md:flex-1 flex gap-2">
+          <div className="relative flex-1">
+            <input placeholder="🔍 جستجوی مشتری یا شماره تماس..." className="w-full pr-12 py-4.5 bg-slate-50 border-none rounded-2xl font-bold outline-none shadow-inner" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+            <span className="absolute right-4 top-1/2 -translate-y-1/2 opacity-30">🔍</span>
+          </div>
+          <button 
+            onClick={toggleSelectAll} 
+            className={`px-5 py-4.5 rounded-2xl font-black text-xs transition-all flex items-center gap-2 whitespace-nowrap ${selectedIds.length === filtered.length && filtered.length > 0 ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}
+          >
+            {selectedIds.length === filtered.length && filtered.length > 0 ? '✓ لغو انتخاب' : '📋 انتخاب همه'}
+          </button>
         </div>
         
         <div className="flex flex-wrap gap-2 w-full md:w-auto">
@@ -361,27 +417,36 @@ const Invoices: React.FC<InvoicesProps> = ({ data, setData, currentUser }) => {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 no-print">
-        {filtered.map(inv => (
-          <div key={inv.id} className="bg-white p-7 md:p-8 rounded-[2.5rem] shadow-sm border border-slate-100 hover:shadow-xl transition-all relative">
-            <div className="absolute top-0 right-0 w-2 h-full bg-indigo-600 rounded-r-full"></div>
-            <div className="flex justify-between items-start mb-6">
-              <div className="overflow-hidden">
-                <p className="text-[9px] font-black text-indigo-500 mb-1">فاکتور #{toPersianNumbers(inv.id.slice(-4))}</p>
-                <h4 className="text-xl font-black text-slate-800 truncate">{inv.customerName}</h4>
+        {filtered.map(inv => {
+          const isSelected = selectedIds.includes(inv.id);
+          return (
+            <div key={inv.id} onClick={() => toggleSelect(inv.id)} className={`bg-white p-7 md:p-8 rounded-[2.5rem] shadow-sm border-2 transition-all relative cursor-pointer ${isSelected ? 'border-indigo-500 bg-indigo-50/10 shadow-xl' : 'border-slate-100 hover:shadow-xl'}`}>
+              <div className={`absolute top-0 right-0 w-2 h-full rounded-r-full transition-colors ${isSelected ? 'bg-indigo-600' : 'bg-indigo-100'}`}></div>
+              
+              {/* چک باکس بصری */}
+              <div className={`absolute top-5 left-5 w-7 h-7 rounded-xl border-2 flex items-center justify-center transition-all ${isSelected ? 'bg-indigo-600 border-indigo-600' : 'border-slate-200 bg-white'}`}>
+                {isSelected && <span className="text-white text-xs">✓</span>}
               </div>
-              <span className="text-[10px] font-bold text-slate-400 bg-slate-50 px-3 py-1.5 rounded-full">{toPersianNumbers(inv.date)}</span>
+
+              <div className="flex justify-between items-start mb-6 mt-4">
+                <div className="overflow-hidden">
+                  <p className="text-[9px] font-black text-indigo-500 mb-1">فاکتور #{toPersianNumbers(inv.id.slice(-4))}</p>
+                  <h4 className="text-xl font-black text-slate-800 truncate">{inv.customerName}</h4>
+                </div>
+                <span className="text-[10px] font-bold text-slate-400 bg-slate-50 px-3 py-1.5 rounded-full">{toPersianNumbers(inv.date)}</span>
+              </div>
+              <div className="bg-slate-50 p-5 rounded-2xl mb-8 border border-slate-100/50">
+                <p className="text-[9px] font-black text-slate-400 mb-1">مبلغ نهایی</p>
+                <p className="text-2xl font-black text-emerald-600 truncate">{formatCurrency(inv.totalAmount)}</p>
+              </div>
+              <div className="flex gap-2.5" onClick={e => e.stopPropagation()}>
+                <button onClick={() => setShowPrintModal(inv)} className="flex-1 bg-indigo-50 text-indigo-600 py-3.5 rounded-2xl font-black text-xs hover:bg-indigo-600 hover:text-white transition-all">👁️ نمایش</button>
+                <button onClick={() => handleEdit(inv)} className="flex-1 bg-blue-50 text-blue-600 py-3.5 rounded-2xl font-black text-xs hover:bg-blue-600 hover:text-white transition-all">📝 ویرایش</button>
+                <button onClick={() => deleteInvoice(inv.id)} className="bg-red-50 text-red-500 px-4 rounded-2xl font-black text-sm transition-all active:scale-90">🗑️</button>
+              </div>
             </div>
-            <div className="bg-slate-50 p-5 rounded-2xl mb-8 border border-slate-100/50">
-              <p className="text-[9px] font-black text-slate-400 mb-1">مبلغ نهایی</p>
-              <p className="text-2xl font-black text-emerald-600 truncate">{formatCurrency(inv.totalAmount)}</p>
-            </div>
-            <div className="flex gap-2.5">
-              <button onClick={() => setShowPrintModal(inv)} className="flex-1 bg-indigo-50 text-indigo-600 py-3.5 rounded-2xl font-black text-xs hover:bg-indigo-600 hover:text-white transition-all">👁️ نمایش و چاپ</button>
-              <button onClick={() => handleEdit(inv)} className="flex-1 bg-blue-50 text-blue-600 py-3.5 rounded-2xl font-black text-xs hover:bg-blue-600 hover:text-white transition-all">📝 ویرایش</button>
-              <button onClick={() => deleteInvoice(inv.id)} className="bg-red-50 text-red-500 px-4 rounded-2xl font-black text-sm transition-all active:scale-90">🗑️</button>
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       {showModal && (
